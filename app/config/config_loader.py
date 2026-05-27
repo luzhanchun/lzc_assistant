@@ -31,7 +31,7 @@ from app.config.mcp_config import MCPConfig, MCPServerConfig
 
 
 # Load .env file into environment variables at module import
-load_dotenv()
+load_dotenv(override=True)  # Override existing env vars for consistency with .env
 
 
 def _load_config_data() -> Dict[str, Any]:
@@ -56,6 +56,7 @@ def load_llm_config() -> LLMConfig:
     config_data = _load_config_data()
     llm_root = config_data.get("llm", {}) or {}
     llm_data = dict(llm_root)
+    legacy_vision_model = (config_data.get("vision", {}) or {}).get("model", {}) or {}
 
     # Inject API keys from environment (with inheritance for convenience)
     normal_api_key = os.getenv("LLM_API_KEY")
@@ -65,6 +66,16 @@ def load_llm_config() -> LLMConfig:
     normal_data = dict(llm_data.get("normal", {}) or {})
     fast_data = dict(llm_data.get("fast", {}) or {})
     vision_data = dict(llm_data.get("vision", {}) or {})
+
+    # Backward compatibility: older config.yml stores vision model settings under
+    # vision.model, while LLMConfig expects them under llm.vision.
+    if legacy_vision_model:
+        legacy_vision_data = dict(legacy_vision_model)
+        model_name = legacy_vision_data.pop("model_name", None)
+        legacy_vision_data.pop("enabled", None)
+        if model_name and "model_names" not in legacy_vision_data:
+            legacy_vision_data["model_names"] = [model_name]
+        vision_data = {**legacy_vision_data, **vision_data}
 
     if normal_api_key:
         normal_data["api_key"] = normal_api_key
@@ -271,13 +282,14 @@ def load_image_generation_config() -> ImageGenerationConfig:
     Load image generation configuration from YAML + environment variables.
 
     Environment variables:
-    - IMAGE_GENERATION_API_KEY: OpenAI API key for DALL-E image generation
+    - IMAGE_GENERATION_API_KEY: API key for image generation
+    - OPENAI_IMAGE_API_KEY: Backward-compatible alias
     """
     config_data = _load_config_data()
     ig_data = dict(config_data.get("image_generation", {}) or {})
 
     # Load API key from environment
-    api_key = os.getenv("IMAGE_GENERATION_API_KEY")
+    api_key = os.getenv("IMAGE_GENERATION_API_KEY") or os.getenv("OPENAI_IMAGE_API_KEY")
     if api_key:
         ig_data["api_key"] = api_key
 

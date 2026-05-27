@@ -6,6 +6,7 @@ Includes security features: input validation, prompt injection protection.
 
 import asyncio
 import base64
+import json
 import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
@@ -156,6 +157,9 @@ async def conversation(request: ConversationRequest, http_request: Request):
                 await queue.put(chunk)
         except Exception as e:
             logger.error(f"Background processing error: {e}", exc_info=True)
+            await queue.put(
+                f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
+            )
         finally:
             await queue.put(None)  # Signal completion
 
@@ -209,7 +213,6 @@ async def conversation(request: ConversationRequest, http_request: Request):
             ):
                 # Parse SSE event
                 if event.startswith("data: "):
-                    import json
                     data = json.loads(event[6:].strip())
                     
                     if data["type"] == "text":

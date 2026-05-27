@@ -7,13 +7,56 @@
 生成后自动上传到 imgbb 图床进行持久化存储。
 """
 
+import asyncio
 import logging
+from typing import Any
 
 from app.agent.tools.base import BaseTool
 from app.agent.types import ToolResult
 from app.utils.image_storage import upload_to_imgbb
 
 logger = logging.getLogger(__name__)
+
+
+SILICONFLOW_IMAGE_SIZES = {
+    "1024x1024": "1024x1024",
+    "1024x768": "1024x768",
+    "768x1024": "768x1024",
+    "1024x576": "1024x576",
+    "576x1024": "576x1024",
+    "512x512": "512x512",
+}
+
+
+def _is_siliconflow_config(base_url: str | None, model: str) -> bool:
+    return "siliconflow" in (base_url or "").lower() or model.startswith("Tongyi-MAI/")
+
+
+def _normalize_siliconflow_size(size: str) -> str:
+    """Map common OpenAI image sizes to SiliconFlow-supported sizes."""
+    if size == "auto":
+        return "1024x1024"
+    if size in SILICONFLOW_IMAGE_SIZES:
+        return size
+    if size in {"1536x1024", "1792x1024"}:
+        return "1024x768"
+    if size in {"1024x1536", "1024x1792"}:
+        return "768x1024"
+    return "1024x1024"
+
+
+def _extract_siliconflow_image_url(payload: dict[str, Any]) -> str | None:
+    images = payload.get("images")
+    if isinstance(images, list) and images:
+        first = images[0]
+        if isinstance(first, dict):
+            return first.get("url")
+    data = payload.get("data")
+    if isinstance(data, list) and data:
+        first = data[0]
+        if isinstance(first, dict):
+            return first.get("url")
+    return None
 
 
 class ImageGeneratorTool(BaseTool):
@@ -69,7 +112,6 @@ class ImageGeneratorTool(BaseTool):
             return ToolResult(success=False, error="Prompt is required")
 
         try:
-            from openai import AsyncOpenAI
             from app.config import settings
 
             config = settings.image_generation
@@ -86,29 +128,63 @@ class ImageGeneratorTool(BaseTool):
                     error="Image generation is disabled",
                 )
 
-            # Create client with optional base_url for OpenAI-compatible APIs
-            client_kwargs = {"api_key": api_key}
-            if config.base_url:
-                client_kwargs["base_url"] = config.base_url
+            revised_prompt = None
+            if _is_siliconflow_config(config.base_url, config.model):
+                import httpx
 
-            client = AsyncOpenAI(
-                **client_kwargs, # type: ignore
-            )
+                base_url = (config.base_url or "https://api.siliconflow.cn/v1").rstrip("/")
+                image_size = _normalize_siliconflow_size(size)
+                logger.info(
+                    "Generating image via SiliconFlow: model=%s image_size=%s",
+                    config.model,
+                    image_size,
+                )
+                async with httpx.AsyncClient(
+                    timeout=httpx.Timeout(120.0, connect=10.0)
+                ) as client:
+                    response = await client.post(
+                        f"{base_url}/images/generations",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": config.model,
+                            "prompt": prompt,
+                            "image_size": image_size,
+                            "batch_size": 1,
+                        },
+                    )
+                    response.raise_for_status()
+                    payload = response.json()
 
-            # Generate image
-            response = await client.images.generate(
-                model=config.model,
-                prompt=prompt,
-                size=size, # type: ignore
-                quality=quality, # type: ignore
-                style=style, # type: ignore
-                n=1,
-            )
+                original_url = _extract_siliconflow_image_url(payload)
+            else:
+                from openai import AsyncOpenAI
 
-            # Get the generated image URL
-            image_data = response.data[0] # type: ignore
-            original_url = image_data.url
-            revised_prompt = image_data.revised_prompt
+                # Create client with optional base_url for OpenAI-compatible APIs
+                client_kwargs = {"api_key": api_key, "timeout": 120.0}
+                if config.base_url:
+                    client_kwargs["base_url"] = config.base_url
+
+                client = AsyncOpenAI(
+                    **client_kwargs, # type: ignore
+                )
+
+                # Generate image
+                response = await client.images.generate(
+                    model=config.model,
+                    prompt=prompt,
+                    size=size, # type: ignore
+                    quality=quality, # type: ignore
+                    style=style, # type: ignore
+                    n=1,
+                )
+
+                # Get the generated image URL
+                image_data = response.data[0] # type: ignore
+                original_url = image_data.url
+                revised_prompt = image_data.revised_prompt
 
             if not original_url:
                 return ToolResult(
@@ -117,7 +193,14 @@ class ImageGeneratorTool(BaseTool):
                 )
 
             # Upload to imgbb for persistent storage
-            storage_result = await upload_to_imgbb(original_url)
+            try:
+                storage_result = await asyncio.wait_for(
+                    upload_to_imgbb(original_url),
+                    timeout=25.0,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("imgbb upload timed out, using original image URL")
+                storage_result = None
 
             if storage_result:
                 # Use imgbb URL as the final URL

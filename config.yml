@@ -213,6 +213,8 @@ image_generation:
   model: "Tongyi-MAI/Z-Image-Turbo"
   base_url: "https://api.siliconflow.cn/v1"
   # api_key: Loaded from .env (OPENAI_IMAGE_API_KEY)
+image_storage:
+  enabled: true
 
 # =============================================================================
 # 9. MCP (Model Context Protocol) Configuration
