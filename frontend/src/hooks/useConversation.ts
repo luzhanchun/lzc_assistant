@@ -470,6 +470,9 @@ export function useConversation(token?: string) {
             );
             break;
 
+          case 'error':
+            throw new Error(event.error || event.content || 'Failed to generate response');
+
           case 'done':
             {
               // Record answer end time
