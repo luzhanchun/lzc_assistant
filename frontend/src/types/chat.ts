@@ -121,6 +121,15 @@ export interface AgentToolManifestResponse {
   agents: AgentToolManifestItem[];
 }
 
+export interface AgentInfo {
+  name: string;
+  description: string;
+}
+
+export interface AgentListResponse {
+  agents: AgentInfo[];
+}
+
 export interface MCPServer {
   id: string;
   name: string;
@@ -128,6 +137,7 @@ export interface MCPServer {
   auth_header_name?: string | null;
   auth_token?: string | null;
   enabled: boolean;
+  bound_agents: string[];
   created_at: string;
   updated_at: string;
 }
@@ -141,6 +151,7 @@ export interface MCPServerUpdateRequest {
   auth_header_name?: string | null;
   auth_token?: string | null;
   enabled?: boolean;
+  agent_names?: string[];
 }
 
 export interface AgentSessionResponse {

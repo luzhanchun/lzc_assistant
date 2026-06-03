@@ -177,6 +177,50 @@ class AgentMCPServerModel(Base):
         }
 
 
+class AgentMCPBindingModel(Base):
+    """User-level binding between MCP servers and registered agents."""
+
+    __tablename__ = "agent_mcp_bindings"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    agent_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    mcp_server_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_agent_mcp_bindings_user_agent_server",
+            "user_id",
+            "agent_name",
+            "mcp_server_name",
+            unique=True,
+        ),
+        Index(
+            "ix_agent_mcp_bindings_user_server",
+            "user_id",
+            "mcp_server_name",
+        ),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": str(self.id),
+            "user_id": self.user_id,
+            "agent_name": self.agent_name,
+            "mcp_server_name": self.mcp_server_name,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
 class AgentSubagentConfigModel(Base):
     """User-defined subagent configuration."""
 

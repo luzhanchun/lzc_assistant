@@ -15,12 +15,13 @@ import {
   updateProfile,
   createSubagent,
   deleteSubagent,
+  getRegisteredAgents,
   updateSubagent,
   listSubagents,
   getAvailableTools,
 } from '../../services/api';
 import { useAuth, useTheme } from '../../contexts';
-import type { SubagentSchema, ToolSchema } from '../../types';
+import type { AgentInfo, SubagentSchema, ToolSchema } from '../../types';
 
 export interface UserProfileModalProps {
   open: boolean;
@@ -43,7 +44,10 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     endpoint: string;
     authHeaderName?: string | null;
     authToken?: string | null;
+    boundAgents: string[];
   }[]>([]);
+  const [registeredAgents, setRegisteredAgents] = useState<AgentInfo[]>([]);
+  const [selectedMcpAgents, setSelectedMcpAgents] = useState<string[]>([]);
   const [mcpName, setMcpName] = useState('');
   const [mcpEndpoint, setMcpEndpoint] = useState('');
   const [mcpAuthHeaderName, setMcpAuthHeaderName] = useState('Authorization');
@@ -87,8 +91,23 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
             endpoint: server.endpoint,
             authHeaderName: server.auth_header_name ?? null,
             authToken: server.auth_token ?? null,
+            boundAgents: server.bound_agents ?? [],
           }))
         );
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+
+    getRegisteredAgents(token)
+      .then((res) => {
+        if (cancelled) return;
+        setRegisteredAgents(res.agents);
+        setSelectedMcpAgents((prev) => {
+          if (prev.length > 0) return prev;
+          if (res.agents.some((agent) => agent.name === 'default')) {
+            return ['default'];
+          }
+          return res.agents[0] ? [res.agents[0].name] : [];
+        });
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
 
@@ -147,12 +166,20 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     }
   };
 
+  const getDefaultMcpAgentSelection = () => {
+    if (registeredAgents.some((agent) => agent.name === 'default')) {
+      return ['default'];
+    }
+    return registeredAgents[0] ? [registeredAgents[0].name] : [];
+  };
+
   const resetMcpForm = () => {
     setMcpName('');
     setMcpEndpoint('');
     setMcpAuthEnabled(false);
     setMcpAuthHeaderName('Authorization');
     setMcpAuthToken('');
+    setSelectedMcpAgents(getDefaultMcpAgentSelection());
     setEditingMcpName(null);
   };
 
@@ -162,6 +189,9 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     if (!mcpName.trim() || !mcpEndpoint.trim()) {
       return setError('请填写 MCP 名称和 Endpoint');
     }
+    if (selectedMcpAgents.length === 0) {
+      return setError('请至少选择一个绑定 Agent');
+    }
     setMcpLoading(true);
     try {
       const server = await createMcpServer(
@@ -170,6 +200,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
           endpoint: mcpEndpoint.trim(),
           auth_header_name: mcpAuthEnabled ? mcpAuthHeaderName.trim() : null,
           auth_token: mcpAuthEnabled ? mcpAuthToken.trim() : null,
+          agent_names: selectedMcpAgents,
         },
         token
       );
@@ -179,15 +210,11 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
           endpoint: server.endpoint,
           authHeaderName: server.auth_header_name ?? null,
           authToken: server.auth_token ?? null,
+          boundAgents: server.bound_agents ?? [],
         },
         ...prev,
       ]);
-      setMcpName('');
-      setMcpEndpoint('');
-      setMcpAuthEnabled(false);
-      setMcpAuthHeaderName('Authorization');
-      setMcpAuthToken('');
-      setEditingMcpName(null);
+      resetMcpForm();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(
@@ -208,6 +235,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     endpoint: string;
     authHeaderName?: string | null;
     authToken?: string | null;
+    boundAgents: string[];
   }) => {
     setEditingMcpName(server.name);
     setMcpName(server.name);
@@ -216,6 +244,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     setMcpAuthEnabled(hasAuth);
     setMcpAuthHeaderName(server.authHeaderName ?? 'Authorization');
     setMcpAuthToken(server.authToken ?? '');
+    setSelectedMcpAgents(server.boundAgents);
   };
 
   const handleUpdateMcpServer = async () => {
@@ -237,6 +266,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
           endpoint: mcpEndpoint.trim(),
           auth_header_name: mcpAuthEnabled ? mcpAuthHeaderName.trim() : null,
           auth_token: mcpAuthEnabled ? mcpAuthToken.trim() : null,
+          agent_names: selectedMcpAgents,
         },
         token
       );
@@ -248,6 +278,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                 endpoint: updated.endpoint,
                 authHeaderName: updated.auth_header_name ?? null,
                 authToken: updated.auth_token ?? null,
+                boundAgents: updated.bound_agents ?? [],
               }
             : server
         )
@@ -539,6 +570,8 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                 name={mcpName}
                 endpoint={mcpEndpoint}
                 servers={mcpServers}
+                agents={registeredAgents}
+                selectedAgents={selectedMcpAgents}
                 loading={mcpLoading}
                 editingName={editingMcpName}
                 authHeaderName={mcpAuthHeaderName}
@@ -546,6 +579,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                 authEnabled={mcpAuthEnabled}
                 onNameChange={setMcpName}
                 onEndpointChange={setMcpEndpoint}
+                onSelectedAgentsChange={setSelectedMcpAgents}
                 onAuthHeaderNameChange={setMcpAuthHeaderName}
                 onAuthTokenChange={setMcpAuthToken}
                 onAuthEnabledChange={setMcpAuthEnabled}
@@ -853,6 +887,8 @@ function McpTab({
   name,
   endpoint,
   servers,
+  agents,
+  selectedAgents,
   loading,
   editingName,
   authHeaderName,
@@ -860,6 +896,7 @@ function McpTab({
   authEnabled,
   onNameChange,
   onEndpointChange,
+  onSelectedAgentsChange,
   onAuthHeaderNameChange,
   onAuthTokenChange,
   onAuthEnabledChange,
@@ -876,7 +913,10 @@ function McpTab({
     endpoint: string;
     authHeaderName?: string | null;
     authToken?: string | null;
+    boundAgents: string[];
   }[];
+  agents: AgentInfo[];
+  selectedAgents: string[];
   loading: boolean;
   editingName: string | null;
   authHeaderName: string;
@@ -884,6 +924,7 @@ function McpTab({
   authEnabled: boolean;
   onNameChange: (value: string) => void;
   onEndpointChange: (value: string) => void;
+  onSelectedAgentsChange: (value: string[]) => void;
   onAuthHeaderNameChange: (value: string) => void;
   onAuthTokenChange: (value: string) => void;
   onAuthEnabledChange: (value: boolean) => void;
@@ -895,10 +936,18 @@ function McpTab({
     endpoint: string;
     authHeaderName?: string | null;
     authToken?: string | null;
+    boundAgents: string[];
   }) => void;
   onDelete: (name: string) => void;
 }) {
   const isEditing = Boolean(editingName);
+  const toggleSelectedAgent = (agentName: string, checked: boolean) => {
+    onSelectedAgentsChange(
+      checked
+        ? Array.from(new Set([...selectedAgents, agentName]))
+        : selectedAgents.filter((name) => name !== agentName)
+    );
+  };
 
   return (
     <>
@@ -938,6 +987,36 @@ function McpTab({
                 <span className="w-1 h-1 rounded-full bg-indigo-400"></span>
                 当前仅支持 StreamableHTTP，可选自定义认证 Header
               </p>
+            </FormField>
+
+            <FormField label="绑定 Agent">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-indigo-100 dark:border-indigo-800/40 bg-white/60 dark:bg-gray-800/60 p-3">
+                {agents.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    暂无可绑定 Agent
+                  </div>
+                ) : (
+                  agents.map((agent) => (
+                    <label
+                      key={agent.name}
+                      className="flex items-start gap-2 rounded-lg px-2 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors duration-200"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAgents.includes(agent.name)}
+                        onChange={(e) => toggleSelectedAgent(agent.name, e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500/40"
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium truncate">{agent.name}</span>
+                        <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {agent.description}
+                        </span>
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
             </FormField>
 
             <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 p-3 rounded-lg bg-white/60 dark:bg-gray-800/60 border border-indigo-100 dark:border-indigo-800/40">
@@ -1032,6 +1111,12 @@ function McpTab({
                           Header: {server.authHeaderName}
                         </div>
                       )}
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        绑定 Agent：
+                        {server.boundAgents.length > 0
+                          ? server.boundAgents.join('、')
+                          : '未绑定'}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

@@ -74,6 +74,7 @@ class AgentHub:
 
     _agents: dict[str, _AgentEntry] = {}
     _providers: dict[str, ToolProvider] = {}
+    _user_agent_mcp_bindings: dict[str, dict[str, list[str]]] = {}
 
     # ==================== Agent ====================
 
@@ -108,6 +109,27 @@ class AgentHub:
     @classmethod
     def clear_agents(cls) -> None:
         cls._agents.clear()
+
+    @classmethod
+    def set_user_agent_mcp_bindings(
+        cls,
+        user_id: str,
+        bindings: dict[str, list[str]],
+    ) -> None:
+        cls._user_agent_mcp_bindings[user_id] = {
+            agent_name: list(dict.fromkeys(server_names))
+            for agent_name, server_names in bindings.items()
+        }
+
+    @classmethod
+    def get_user_agent_mcp_bindings(
+        cls,
+        user_id: Optional[str],
+        agent_name: Optional[str],
+    ) -> list[str]:
+        if not user_id or not agent_name:
+            return []
+        return cls._user_agent_mcp_bindings.get(user_id, {}).get(agent_name, [])
 
     # ==================== Providers ====================
 
@@ -239,7 +261,11 @@ class AgentHub:
                 system_prompt="You are a helpful assistant.",
             )
         #返回agent绑定的所有工具名列表
-        bound_names = cls.resolve_tool_binding(config.tool_binding, user_id=user_id)
+        bound_names = cls.resolve_tool_binding(
+            config.tool_binding,
+            user_id=user_id,
+            agent_name=agent_name,
+        )
         if not selected_tools:
             return bound_names
 
@@ -270,7 +296,11 @@ class AgentHub:
         all_servers = cls.list_all_servers(user_id=user_id)
 
         for config in cls.list_agent_configs():
-            bound_names = cls.resolve_tool_binding(config.tool_binding, user_id=user_id)
+            bound_names = cls.resolve_tool_binding(
+                config.tool_binding,
+                user_id=user_id,
+                agent_name=config.name,
+            )
             bound_set = set(bound_names)
             grouped = {
                 "tool": cls._filter_servers_by_names(
@@ -299,6 +329,7 @@ class AgentHub:
         cls,
         binding: AgentToolBinding,
         user_id: Optional[str] = None,
+        agent_name: Optional[str] = None,
     ) -> list[str]:
         '''
         把一个 AgentToolBinding 里配置的各种工具绑定，解析成最终可用的工具名列表，并且去重保序。
@@ -306,7 +337,9 @@ class AgentHub:
         '''
         names: list[str] = []
         names.extend(cls._resolve_provider_binding("local", binding.local, user_id))
-        names.extend(cls._resolve_mcp_server_binding(binding.mcp, user_id))
+        mcp_servers = list(binding.mcp)
+        mcp_servers.extend(cls.get_user_agent_mcp_bindings(user_id, agent_name))
+        names.extend(cls._resolve_mcp_server_binding(mcp_servers, user_id))
         names.extend(
             cls._resolve_provider_binding("subagent", binding.subagents, user_id)
         )
@@ -431,6 +464,7 @@ class AgentHub:
     def clear_all(cls) -> None:
         cls.clear_agents()
         cls.clear_providers()
+        cls._user_agent_mcp_bindings.clear()
 
 
 # Imported only for type checking; avoid runtime circular import

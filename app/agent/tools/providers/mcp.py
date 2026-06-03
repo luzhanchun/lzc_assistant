@@ -69,6 +69,9 @@ class MCPToolProvider:
         user_id: Optional[str] = None,
     ) -> list[str]:
         server_set = set(server_names)
+        for server_id, meta in self._server_meta.items():
+            if meta.get("display_name") in server_set:
+                server_set.add(server_id)
         return [
             tool_name
             for tool_name in self._tools.keys()

@@ -100,9 +100,13 @@ class AgentContextBuilder:
         # - selected_tools 为空时，使用 Agent 绑定的所有工具
         # - selected_tools 非空时，只使用 selected_tools 与绑定工具的交集
         if user_id:
+            from app.services.agent_mcp_binding_service import (
+                agent_mcp_binding_service,
+            )
             from app.services.subagent_service import subagent_service
 
             await subagent_service.sync_user_subagents(user_id)
+            await agent_mcp_binding_service.sync_user_bindings(user_id)
         #llm最终可以看到的工具shema
         available_tools = AgentHub.get_agent_tool_schemas(
             agent_name,

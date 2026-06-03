@@ -9,6 +9,7 @@ import type {
   AgentSessionResponse,
   ToolsListResponse,
   AgentToolManifestResponse,
+  AgentListResponse,
   MCPServerListResponse,
   MCPServer,
   MCPServerUpdateRequest,
@@ -54,6 +55,24 @@ export async function getAgentToolManifest(
 }
 
 /**
+ * Get currently registered agents
+ */
+export async function getRegisteredAgents(
+  token?: string
+): Promise<AgentListResponse> {
+  const response = await fetch(`${API_BASE}/agent/agents`, {
+    headers: createAuthHeaders(token),
+  });
+
+  if (!response.ok) {
+    const msg = await parseErrorResponse(response);
+    throw new Error(msg || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
  * List MCP servers for current user
  */
 export async function listMcpServers(token?: string): Promise<MCPServerListResponse> {
@@ -78,6 +97,7 @@ export async function createMcpServer(
     endpoint: string;
     auth_header_name?: string | null;
     auth_token?: string | null;
+    agent_names: string[];
   },
   token?: string
 ): Promise<MCPServer> {

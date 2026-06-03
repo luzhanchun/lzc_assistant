@@ -17,6 +17,7 @@ from app.config import settings
 from app.agent.service import agent_service
 from app.agent.registry import AgentHub
 from app.security.dependencies import check_message_security
+from app.services.agent_mcp_binding_service import agent_mcp_binding_service
 from app.services.mcp_service import mcp_service
 from app.services.subagent_service import subagent_service
 
@@ -74,6 +75,19 @@ class AgentToolManifestResponse(BaseModel):
     agents: List[AgentToolManifestItem]
 
 
+class AgentInfo(BaseModel):
+    """Registered agent info for selectors."""
+
+    name: str
+    description: str
+
+
+class AgentListResponse(BaseModel):
+    """Response model for registered agents."""
+
+    agents: List[AgentInfo]
+
+
 class MCPServerRequest(BaseModel):
     """Request model for creating MCP server."""
 
@@ -81,6 +95,7 @@ class MCPServerRequest(BaseModel):
     endpoint: HttpUrl
     auth_header_name: Optional[str] = Field(default=None, max_length=128)
     auth_token: Optional[str] = None
+    agent_names: List[str] = Field(..., min_length=1)
 
 
 class MCPServerResponse(BaseModel):
@@ -92,6 +107,7 @@ class MCPServerResponse(BaseModel):
     auth_header_name: Optional[str] = None
     auth_token: Optional[str] = None
     enabled: bool
+    bound_agents: List[str] = Field(default_factory=list)
     created_at: str
     updated_at: str
 
@@ -109,6 +125,7 @@ class MCPServerUpdateRequest(BaseModel):
     auth_header_name: Optional[str] = Field(default=None, max_length=128)
     auth_token: Optional[str] = None
     enabled: Optional[bool] = None
+    agent_names: Optional[List[str]] = None
 
 
 class ImageData(BaseModel):
@@ -209,6 +226,15 @@ class AgentHistoryResponse(BaseModel):
     messages: List[AgentMessageResponse]
 
 
+async def _build_mcp_server_response(user_id: str, server) -> MCPServerResponse:
+    data = server.to_dict()
+    data["bound_agents"] = await agent_mcp_binding_service.list_server_bound_agents(
+        user_id=user_id,
+        server_name=server.name,
+    )
+    return MCPServerResponse(**data)
+
+
 @router.get("/agent/tools")
 async def list_available_tools(http_request: Request) -> ToolsListResponse:
     """
@@ -270,6 +296,7 @@ async def get_agent_tool_manifest(
         raise HTTPException(status_code=401, detail="需要登录")
 
     await subagent_service.sync_user_subagents(user_id)
+    await agent_mcp_binding_service.sync_user_bindings(user_id)
     agents_data = AgentHub.build_agent_tool_manifest(user_id=user_id)
 
     return AgentToolManifestResponse(
@@ -310,6 +337,21 @@ async def get_agent_tool_manifest(
     )
 
 
+@router.get("/agent/agents")
+async def list_registered_agents(http_request: Request) -> AgentListResponse:
+    """List currently registered agents."""
+    user_id = getattr(http_request.state, "user_id", None)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="需要登录")
+
+    return AgentListResponse(
+        agents=[
+            AgentInfo(name=config.name, description=config.description)
+            for config in AgentHub.list_agent_configs()
+        ]
+    )
+
+
 @router.get("/agent/mcp-servers")
 async def list_mcp_servers(http_request: Request) -> MCPServerListResponse:
     """List MCP servers for current user."""
@@ -319,7 +361,10 @@ async def list_mcp_servers(http_request: Request) -> MCPServerListResponse:
 
     servers = await mcp_service.list_servers(user_id)
     return MCPServerListResponse(
-        servers=[MCPServerResponse(**server.to_dict()) for server in servers]
+        servers=[
+            await _build_mcp_server_response(user_id, server)
+            for server in servers
+        ]
     )
 
 
@@ -333,6 +378,12 @@ async def create_mcp_server(
         raise HTTPException(status_code=401, detail="需要登录")
 
     try:
+        agent_names = agent_mcp_binding_service.normalize_agent_names(
+            payload.agent_names
+        )
+        if not agent_names:
+            raise ValueError("请选择至少一个 Agent")
+        agent_mcp_binding_service.validate_agent_names(agent_names)
         server = await mcp_service.create_server(
             user_id=user_id,
             name=payload.name,
@@ -341,10 +392,15 @@ async def create_mcp_server(
             auth_header_name=payload.auth_header_name,
             auth_token=payload.auth_token,
         )
+        await agent_mcp_binding_service.bind_server_to_agents(
+            user_id=user_id,
+            server_name=server.name,
+            agent_names=agent_names,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    return MCPServerResponse(**server.to_dict())
+    return await _build_mcp_server_response(user_id, server)
 
 
 @router.patch("/agent/mcp-servers/{server_name}")
@@ -364,6 +420,13 @@ async def update_mcp_server(
     )
 
     try:
+        agent_names = None
+        if "agent_names" in update_data:
+            agent_names = agent_mcp_binding_service.normalize_agent_names(
+                payload.agent_names or []
+            )
+            agent_mcp_binding_service.validate_agent_names(agent_names)
+
         server = await mcp_service.update_server(
             user_id=user_id,
             name=server_name,
@@ -373,13 +436,19 @@ async def update_mcp_server(
             auth_token=update_data.get("auth_token"),
             update_auth=update_auth,
         )
+        if server and agent_names is not None:
+            await agent_mcp_binding_service.replace_server_bindings(
+                user_id=user_id,
+                server_name=server.name,
+                agent_names=agent_names,
+            )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if not server:
         raise HTTPException(status_code=404, detail="MCP server not found")
 
-    return MCPServerResponse(**server.to_dict())
+    return await _build_mcp_server_response(user_id, server)
 
 
 @router.delete("/agent/mcp-servers/{server_name}")
@@ -391,6 +460,8 @@ async def delete_mcp_server(server_name: str, http_request: Request):
 
     try:
         deleted = await mcp_service.delete_server(user_id, server_name)
+        if deleted:
+            await agent_mcp_binding_service.delete_server_bindings(user_id, server_name)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
