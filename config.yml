@@ -64,9 +64,16 @@ llm:
 # =============================================================================
 
 embedding:
+  # Supported types: huggingface, siliconflow
+  type: "siliconflow"
   # HuggingFace model name for text embedding
   # BGE models are optimized for Chinese text
-  model_name: "BAAI/bge-small-zh-v1.5"
+  model_name: "BAAI/bge-m3"
+  # SiliconFlow base URL (used when type = siliconflow)
+  base_url: "https://api.siliconflow.cn/v1"
+  # 每次请求的 embedding 批处理大小。SiliconFlow 当前最多支持 64 个输入。
+  batch_size: 64
+  # api_key: Loaded from .env (EMBEDDING_API_KEY or falls back to LLM_API_KEY)
 
 # =============================================================================
 # 3. Vector Store Configuration

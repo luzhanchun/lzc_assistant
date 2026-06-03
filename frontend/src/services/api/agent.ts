@@ -8,6 +8,7 @@ import type {
   SSEEvent,
   AgentSessionResponse,
   ToolsListResponse,
+  AgentToolManifestResponse,
   MCPServerListResponse,
   MCPServer,
   MCPServerUpdateRequest,
@@ -23,6 +24,24 @@ import type {
  */
 export async function getAvailableTools(token?: string): Promise<ToolsListResponse> {
   const response = await fetch(`${API_BASE}/agent/tools`, {
+    headers: createAuthHeaders(token),
+  });
+
+  if (!response.ok) {
+    const msg = await parseErrorResponse(response);
+    throw new Error(msg || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get tools grouped by registered agent and source type
+ */
+export async function getAgentToolManifest(
+  token?: string
+): Promise<AgentToolManifestResponse> {
+  const response = await fetch(`${API_BASE}/agent/tool-manifest`, {
     headers: createAuthHeaders(token),
   });
 

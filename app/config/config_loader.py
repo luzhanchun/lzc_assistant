@@ -142,6 +142,7 @@ def load_rag_config(llm_config: Any | None = None) -> RAGConfig:
     Load RAG configuration from YAML + environment variables.
     
     Environment variables:
+    - EMBEDDING_API_KEY: Dedicated embedding API key (falls back to LLM_API_KEY)
     - RERANKER_API_KEY: Dedicated reranker API key (falls back to LLM_API_KEY)
     
     Args:
@@ -153,9 +154,16 @@ def load_rag_config(llm_config: Any | None = None) -> RAGConfig:
     rag_data: Dict[str, Any] = {}
 
     # Copy RAG-specific sections
-    for key in ["paths", "embedding", "retrieval", "data_source"]:
+    for key in ["paths", "retrieval", "data_source"]:
         if key in config_data:
             rag_data[key] = config_data[key]
+
+    # Embedding config with API key inheritance
+    embedding_data = dict(config_data.get("embedding", {}) or {})
+    embedding_api_key = os.getenv("EMBEDDING_API_KEY") or os.getenv("LLM_API_KEY")
+    if embedding_api_key:
+        embedding_data["api_key"] = embedding_api_key
+    rag_data["embedding"] = embedding_data
 
     # Vector store config (without host/port, those are in DatabaseConfig)
     vs_data = config_data.get("vector_store", {}) or {}

@@ -3,13 +3,18 @@
  * Text area with send button, cancel functionality for streaming, and image upload
  */
 
-import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, type KeyboardEvent, type ChangeEvent } from 'react';
 import { SendHorizontal, Square, Paperclip, X } from 'lucide-react';
 import { ToolSelector } from './ToolSelector';
 import type { ImageData } from '../../types';
 
 export interface AgentChatInputProps {
-  onSend: (message: string, selectedTools?: string[], images?: ImageData[]) => void;
+  onSend: (
+    message: string,
+    selectedTools?: string[],
+    images?: ImageData[],
+    agentName?: string
+  ) => void;
   onCancel?: () => void;
   disabled?: boolean;
   isStreaming?: boolean;
@@ -37,7 +42,8 @@ export function AgentChatInput({
 }: AgentChatInputProps) {
   const [input, setInput] = useState('');
   const [isComposing, setIsComposing] = useState(false);
-  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [activeAgentName, setActiveAgentName] = useState('default');
+  const [selectedToolsByAgent, setSelectedToolsByAgent] = useState<Record<string, string[]>>({});
   const [images, setImages] = useState<ImageData[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -62,10 +68,12 @@ export function AgentChatInput({
 
   const handleSend = () => {
     if ((input.trim() || images.length > 0) && !disabled && !isStreaming) {
+      const selectedTools = selectedToolsByAgent[activeAgentName] ?? [];
       onSend(
         input,
         selectedTools.length > 0 ? selectedTools : undefined,
-        images.length > 0 ? images : undefined
+        images.length > 0 ? images : undefined,
+        activeAgentName
       );
       setInput('');
       setImages([]);
@@ -82,6 +90,20 @@ export function AgentChatInput({
   const handleCancel = () => {
     onCancel?.();
   };
+
+  const handleAgentChange = useCallback((agentName: string) => {
+    setActiveAgentName(agentName);
+  }, []);
+
+  const handleToolSelectionChange = useCallback((
+    agentName: string,
+    tools: string[]
+  ) => {
+    setSelectedToolsByAgent(prev => ({
+      ...prev,
+      [agentName]: tools,
+    }));
+  }, []);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
@@ -206,8 +228,10 @@ export function AgentChatInput({
       {/* Tool Selector */}
       <ToolSelector
         token={token}
-        selectedTools={selectedTools}
-        onSelectionChange={setSelectedTools}
+        agentName={activeAgentName}
+        selectedToolsByAgent={selectedToolsByAgent}
+        onAgentChange={handleAgentChange}
+        onSelectionChange={handleToolSelectionChange}
         disabled={disabled || isStreaming}
         onExpandChange={onToolsOpenChange}
       />

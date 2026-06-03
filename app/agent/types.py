@@ -92,13 +92,22 @@ class AgentContext:
 
 
 @dataclass
+class AgentToolBinding:
+    """Agent 可使用的工具绑定。"""
+
+    local: list[str] = field(default_factory=list)
+    mcp: list[str] = field(default_factory=list)
+    subagents: list[str] = field(default_factory=list)
+
+
+@dataclass
 class AgentConfig:
     """Agent 配置"""
 
     name: str
     description: str
     system_prompt: str
-    tools: list[str] = field(default_factory=list)  # Tool 名称列表
+    tool_binding: AgentToolBinding = field(default_factory=AgentToolBinding)
     max_iterations: int = 32
 
 

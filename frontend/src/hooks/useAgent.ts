@@ -303,7 +303,12 @@ export function useAgent(token?: string) {
     []
   );
 
-  const sendMessage = useCallback(async (content: string, selectedTools?: string[], images?: ImageData[]) => {
+  const sendMessage = useCallback(async (
+    content: string,
+    selectedTools?: string[],
+    images?: ImageData[],
+    agentName = 'default'
+  ) => {
     if (!content.trim() && (!images || images.length === 0)) return;
     if (isLoading) return;
     if (!token) {
@@ -404,7 +409,7 @@ export function useAgent(token?: string) {
       for await (const event of streamAgentChat({
         message: content,
         session_id: sessionId,
-        agent_name: 'default',
+        agent_name: agentName,
         stream: true,
         selected_tools: selectedTools,
         images: images,

@@ -63,6 +63,19 @@ class MCPToolProvider:
     def list_servers(self) -> list[str]:
         return list(self._servers.keys())
 
+    def list_tool_names_by_servers(
+        self,
+        server_names: list[str],
+        user_id: Optional[str] = None,
+    ) -> list[str]:
+        server_set = set(server_names)
+        return [
+            tool_name
+            for tool_name in self._tools.keys()
+            if self._tool_servers.get(tool_name) in server_set
+            and self._is_tool_visible(tool_name, user_id)
+        ]
+
     def get_last_load_error(self, name: str) -> Optional[str]:
         return self._last_load_errors.get(name)
 

@@ -50,7 +50,7 @@ class BaseAgent(ABC):
         self.name = config.name
         self.description = config.description
         self.system_prompt = config.system_prompt
-        self.tools = config.tools
+        self.tool_binding = config.tool_binding
         self.max_iterations = config.max_iterations
 
         # 上下文构建器

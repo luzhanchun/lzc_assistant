@@ -1,56 +1,85 @@
 /**
- * Tool Selector Component
+ * Agent-aware tool selector.
  *
- * Tools/MCP/Agents 分为独立方框：
- * - Tools 方框：展示 builtin server，点击展开显示工具列表
- * - MCP 方框：展示 MCP servers，点击展开显示工具列表
- * - Agents 方框：展示 Subagent，点击展开显示列表
- *
- * Tools/MCP 使用统一的 ServerCard 组件展示。
+ * Loads the backend tool manifest and shows the tools available to the active
+ * agent, grouped as local tools, MCP tools, and subagent tools.
  */
 
-import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Wrench, Globe, Check, Info, Bot, Loader2 } from 'lucide-react';
-import type { ServerInfo, ToolSchema, SubagentSchema } from '../../types';
-import { getAvailableTools, listSubagents, toggleSubagent } from '../../services/api/agent';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Bot,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Globe,
+  Info,
+  Loader2,
+  Wrench,
+} from 'lucide-react';
+import type { AgentToolManifestItem, ServerInfo, ToolSchema } from '../../types';
+import { getAgentToolManifest } from '../../services/api/agent';
 
 export interface ToolSelectorProps {
   token?: string;
-  selectedTools: string[];
-  onSelectionChange: (tools: string[]) => void;
+  agentName: string;
+  selectedToolsByAgent: Record<string, string[]>;
+  onAgentChange: (agentName: string) => void;
+  onSelectionChange: (agentName: string, tools: string[]) => void;
   disabled?: boolean;
   onExpandChange?: (isExpanded: boolean) => void;
 }
 
-// Compact tool chip component
+const CATEGORY_CONFIG = {
+  tool: {
+    label: 'Tools',
+    icon: Wrench,
+    activeClass: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200',
+    hoverClass: 'hover:bg-orange-50 dark:hover:bg-orange-900/20',
+    iconClass: 'text-orange-500',
+  },
+  mcp: {
+    label: 'MCP',
+    icon: Globe,
+    activeClass: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200',
+    hoverClass: 'hover:bg-blue-50 dark:hover:bg-blue-900/20',
+    iconClass: 'text-blue-500',
+  },
+  subagent: {
+    label: 'Subagent',
+    icon: Bot,
+    activeClass: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200',
+    hoverClass: 'hover:bg-purple-50 dark:hover:bg-purple-900/20',
+    iconClass: 'text-purple-500',
+  },
+} as const;
+
+type Category = keyof typeof CATEGORY_CONFIG;
+
 const ToolChip = memo(function ToolChip({
   tool,
+  serverType,
   isSelected,
+  isShowingInfo,
   onToggle,
   onShowInfo,
-  isShowingInfo,
   disabled,
-  serverType
 }: {
   tool: ToolSchema;
+  serverType: ServerInfo['type'];
   isSelected: boolean;
+  isShowingInfo: boolean;
   onToggle: () => void;
   onShowInfo: () => void;
-  isShowingInfo: boolean;
   disabled?: boolean;
-  serverType: string;
 }) {
-  // For MCP tools, remove prefix for shorter display
   const displayName = serverType === 'mcp'
     ? tool.name.replace(/^mcp_\w+_/, '')
-    : tool.name;
-
-  // Colors based on server type
-  const isLocal = serverType === 'local';
-  const selectedBgClass = isLocal ? 'bg-orange-500' : 'bg-blue-500';
-  const hoverTextClass = isLocal ? 'hover:text-orange-600 dark:hover:text-orange-400' : 'hover:text-blue-600 dark:hover:text-blue-400';
-  const infoHoverClass = isLocal ? 'hover:text-orange-500' : 'hover:text-blue-500';
-  const infoSelectedClass = isLocal ? 'text-orange-200' : 'text-blue-200';
+    : tool.name.replace(/^subagent_/, '');
+  const selectedClass = serverType === 'local'
+    ? 'bg-orange-500'
+    : serverType === 'mcp'
+      ? 'bg-blue-500'
+      : 'bg-purple-500';
 
   return (
     <div
@@ -59,38 +88,30 @@ const ToolChip = memo(function ToolChip({
         transition-colors duration-150
         ${disabled ? 'opacity-50' : ''}
         ${isSelected
-          ? `${selectedBgClass} text-white`
+          ? `${selectedClass} text-white`
           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
         }
       `}
     >
-      {/* Checkbox area */}
-      <div
+      <button
+        type="button"
         onClick={() => !disabled && onToggle()}
-        className={`
-          flex items-center gap-1 cursor-pointer
-          ${!isSelected ? hoverTextClass : ''}
-        `}
+        className="flex items-center gap-1 cursor-pointer"
+        disabled={disabled}
       >
         {isSelected && <Check className="w-3 h-3" />}
         <span>{displayName}</span>
-      </div>
+      </button>
 
-      {/* Info icon */}
       {tool.description && (
         <Info
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             onShowInfo();
           }}
           className={`
             w-3 h-3 cursor-pointer flex-shrink-0
-            ${isShowingInfo
-              ? 'text-yellow-300'
-              : isSelected
-                ? `${infoSelectedClass} hover:text-white`
-                : `text-gray-400 ${infoHoverClass}`
-            }
+            ${isShowingInfo ? 'text-yellow-300' : 'text-gray-400 hover:text-gray-500'}
           `}
         />
       )}
@@ -98,119 +119,38 @@ const ToolChip = memo(function ToolChip({
   );
 });
 
-// Subagent chip component
-const SubagentChip = memo(function SubagentChip({
-  subagent,
-  isSelected,
-  onToggle,
-  onShowInfo,
-  isShowingInfo,
-  disabled,
-  isToggling,
-}: {
-  subagent: SubagentSchema;
-  isSelected: boolean;
-  onToggle: () => void;
-  onShowInfo: () => void;
-  isShowingInfo: boolean;
-  disabled?: boolean;
-  isToggling?: boolean;
-}) {
-  return (
-    <div
-      className={`
-        inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs
-        transition-colors duration-150 select-none
-        ${disabled || isToggling ? 'opacity-50' : ''}
-        ${isSelected
-          ? 'bg-purple-500 text-white'
-          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-        }
-      `}
-    >
-      {/* Checkbox area */}
-      <div
-        onClick={() => !disabled && !isToggling && onToggle()}
-        className={`
-          flex items-center gap-1 cursor-pointer
-          ${!isSelected ? 'hover:text-purple-600 dark:hover:text-purple-400' : ''}
-        `}
-      >
-        {isToggling ? (
-          <Loader2 className="w-3 h-3 animate-spin" />
-        ) : isSelected ? (
-          <Check className="w-3 h-3" />
-        ) : null}
-        <span className="font-medium">{subagent.display_name}</span>
-      </div>
-
-      {/* Info icon */}
-      {subagent.description && (
-        <Info
-          onClick={(e) => {
-            e.stopPropagation();
-            onShowInfo();
-          }}
-          className={`
-            w-3 h-3 cursor-pointer flex-shrink-0
-            ${isShowingInfo
-              ? 'text-yellow-300'
-              : isSelected
-                ? 'text-purple-200 hover:text-white'
-                : 'text-gray-400 hover:text-purple-500'
-            }
-          `}
-        />
-      )}
-    </div>
-  );
-});
-
-// Server card component - works for both builtin and MCP servers
 const ServerCard = memo(function ServerCard({
   server,
   selectedTools,
   onToggleTool,
   onToggleAll,
-  disabled,
   isExpanded,
   onToggleExpand,
+  disabled,
 }: {
   server: ServerInfo;
   selectedTools: string[];
-  onToggleTool: (name: string) => void;
-  onToggleAll: (serverName: string, select: boolean) => void;
-  disabled?: boolean;
+  onToggleTool: (toolName: string) => void;
+  onToggleAll: (server: ServerInfo, select: boolean) => void;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  disabled?: boolean;
 }) {
   const [showingInfoTool, setShowingInfoTool] = useState<string | null>(null);
-
-  const selectedCount = server.tools.filter(t => selectedTools.includes(t.name)).length;
-  const allSelected = selectedCount === server.tools.length && server.tools.length > 0;
-
-  // Find the tool whose info is being shown
-  const infoTool = showingInfoTool ? server.tools.find(t => t.name === showingInfoTool) : null;
-
-  // Choose icon and colors based on server type
-  const ServerIcon = server.type === 'local' ? Wrench : Globe;
-  const iconColorClass = server.type === 'local' ? 'text-orange-500' : 'text-blue-500';
-  const buttonColorClass = server.type === 'local'
-    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/50'
-    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50';
-
-  const handleShowInfo = (toolName: string) => {
-    setShowingInfoTool(prev => prev === toolName ? null : toolName);
-  };
+  const selectedCount = server.tools.filter(tool => selectedTools.includes(tool.name)).length;
+  const allSelected = server.tools.length > 0 && selectedCount === server.tools.length;
+  const infoTool = showingInfoTool
+    ? server.tools.find(tool => tool.name === showingInfoTool)
+    : null;
+  const ServerIcon = server.type === 'local' ? Wrench : server.type === 'mcp' ? Globe : Bot;
 
   return (
     <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-      {/* Server header */}
       <div
         className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
         onClick={onToggleExpand}
       >
-        <ServerIcon className={`w-3.5 h-3.5 ${iconColorClass}`} />
+        <ServerIcon className="w-3.5 h-3.5 text-gray-500" />
         <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-1">
           {server.name}
         </span>
@@ -218,19 +158,13 @@ const ServerCard = memo(function ServerCard({
           {selectedCount}/{server.tools.length}
         </span>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleAll(server.name, !allSelected);
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleAll(server, !allSelected);
           }}
           disabled={disabled}
-          className={`
-            px-2 py-0.5 text-xs rounded transition-colors
-            ${allSelected
-              ? buttonColorClass
-              : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
-            }
-            hover:opacity-80
-          `}
+          className="px-2 py-0.5 text-xs rounded bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:opacity-80"
         >
           {allSelected ? 'Deselect All' : 'Select All'}
         </button>
@@ -241,30 +175,26 @@ const ServerCard = memo(function ServerCard({
         )}
       </div>
 
-      {/* Expanded tool list */}
       {isExpanded && (
         <div className="p-2 bg-gray-50 dark:bg-gray-800">
-          {/* Tool chips - compact flex wrap layout */}
           <div className="flex flex-wrap gap-1.5">
             {server.tools.map(tool => (
               <ToolChip
                 key={tool.name}
                 tool={tool}
+                serverType={server.type}
                 isSelected={selectedTools.includes(tool.name)}
                 onToggle={() => onToggleTool(tool.name)}
-                onShowInfo={() => handleShowInfo(tool.name)}
+                onShowInfo={() => {
+                  setShowingInfoTool(prev => prev === tool.name ? null : tool.name);
+                }}
                 isShowingInfo={showingInfoTool === tool.name}
                 disabled={disabled}
-                serverType={server.type}
               />
             ))}
-            {server.tools.length === 0 && (
-              <span className="text-xs text-gray-400">No tools available</span>
-            )}
           </div>
 
-          {/* Tool description - shown at bottom when info icon is clicked */}
-          {infoTool && infoTool.description && (
+          {infoTool && (
             <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
               <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {infoTool.name}
@@ -282,161 +212,111 @@ const ServerCard = memo(function ServerCard({
 
 export function ToolSelector({
   token,
-  selectedTools,
+  agentName,
+  selectedToolsByAgent,
+  onAgentChange,
   onSelectionChange,
   disabled = false,
   onExpandChange,
 }: ToolSelectorProps) {
-  const [isToolsExpanded, setIsToolsExpanded] = useState(false);
-  const [isMCPExpanded, setIsMCPExpanded] = useState(false);
-  const [isAgentsExpanded, setIsAgentsExpanded] = useState(false);
-  const [servers, setServers] = useState<ServerInfo[]>([]);
+  const [manifest, setManifest] = useState<AgentToolManifestItem[]>([]);
+  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
+  const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
-  const [subagents, setSubagents] = useState<SubagentSchema[]>([]);
-  const [isSubagentLoading, setIsSubagentLoading] = useState(false);
-  const [subagentError, setSubagentError] = useState<string | null>(null);
-  const [showingInfoAgent, setShowingInfoAgent] = useState<string | null>(null);
-  const [togglingAgents, setTogglingAgents] = useState<Set<string>>(new Set());
-  const selectedToolsRef = useRef<string[]>(selectedTools);
 
-  // Load available tools
-  const loadTools = useCallback(async () => {
+  const activeAgent = useMemo(
+    () => manifest.find(agent => agent.name === agentName) ?? manifest[0],
+    [agentName, manifest]
+  );
+  const selectedTools = useMemo(
+    () => activeAgent ? selectedToolsByAgent[activeAgent.name] ?? [] : [],
+    [activeAgent, selectedToolsByAgent]
+  );
+
+  const loadManifest = useCallback(async () => {
     if (!token) return;
 
     setIsLoading(true);
     setError(null);
-
     try {
-      const response = await getAvailableTools(token);
-      setServers(response.servers);
-
-      // Always enable builtin tools on load
-      if (response.servers.length > 0) {
-        const builtinToolNames = response.servers
-          .filter(server => server.type === 'local')
-          .flatMap(server => server.tools.map(tool => tool.name));
-        const builtinSet = new Set(builtinToolNames);
-        const mergedSelection = [
-          ...selectedToolsRef.current.filter((name) => !builtinSet.has(name)),
-          ...builtinToolNames,
-        ];
-        const hasDiff =
-          mergedSelection.length !== selectedToolsRef.current.length ||
-          mergedSelection.some(
-            (name, index) => name !== selectedToolsRef.current[index]
-          );
-        if (hasDiff) {
-          onSelectionChange(mergedSelection);
-        }
-      }
+      const response = await getAgentToolManifest(token);
+      setManifest(response.agents);
     } catch (err) {
-      console.error('Failed to load tools:', err);
+      console.error('Failed to load agent tool manifest:', err);
       setError(err instanceof Error ? err.message : 'Failed to load tools');
     } finally {
       setIsLoading(false);
     }
-  }, [token, onSelectionChange]);
+  }, [token]);
 
-  const loadSubagents = useCallback(async () => {
-    if (!token) return;
+  useEffect(() => {
+    loadManifest();
+  }, [loadManifest]);
 
-    setIsSubagentLoading(true);
-    setSubagentError(null);
+  useEffect(() => {
+    if (manifest.length === 0) return;
 
-    try {
-      const response = await listSubagents(token);
-      setSubagents(response.subagents);
-
-      const enabledSubagentTools = response.subagents
-        .filter((subagent) => subagent.enabled)
-        .map((subagent) => `subagent_${subagent.name}`);
-      const enabledSet = new Set(enabledSubagentTools);
-
-      const cleanedSelection = selectedToolsRef.current.filter(
-        (toolName) =>
-          !toolName.startsWith('subagent_') || enabledSet.has(toolName)
-      );
-      const mergedSelection = [...cleanedSelection];
-
-      enabledSubagentTools.forEach((name) => {
-        if (!mergedSelection.includes(name)) {
-          mergedSelection.push(name);
-        }
-      });
-
-      const hasDiff =
-        mergedSelection.length !== selectedToolsRef.current.length ||
-        mergedSelection.some(
-          (name, index) => name !== selectedToolsRef.current[index]
-        );
-
-      if (hasDiff) {
-        onSelectionChange(mergedSelection);
-      }
-    } catch (err) {
-      console.error('Failed to load subagents:', err);
-      setSubagentError(err instanceof Error ? err.message : 'Failed to load subagents');
-    } finally {
-      setIsSubagentLoading(false);
+    const nextAgent = manifest.find(agent => agent.name === agentName)
+      ?? manifest[0];
+    if (nextAgent && nextAgent.name !== agentName) {
+      onAgentChange(nextAgent.name);
     }
-  }, [token, onSelectionChange]);
+  }, [agentName, manifest, onAgentChange]);
 
   useEffect(() => {
-    loadTools();
-  }, [loadTools]);
-
-  useEffect(() => {
-    loadSubagents();
-  }, [loadSubagents]);
-
-  useEffect(() => {
-    if (isAgentsExpanded) {
-      loadSubagents();
-    }
-  }, [isAgentsExpanded, loadSubagents]);
-
-  useEffect(() => {
-    selectedToolsRef.current = selectedTools;
-  }, [selectedTools]);
-
-  useEffect(() => {
-    onExpandChange?.(isToolsExpanded || isMCPExpanded || isAgentsExpanded);
-  }, [isToolsExpanded, isMCPExpanded, isAgentsExpanded, onExpandChange]);
+    onExpandChange?.(activeCategory !== null);
+  }, [activeCategory, onExpandChange]);
 
   useEffect(() => () => onExpandChange?.(false), [onExpandChange]);
 
+  const currentServers = activeAgent && activeCategory
+    ? activeAgent.tools[activeCategory]
+    : [];
+
+  const counts = useMemo(() => {
+    if (!activeAgent) {
+      return { tool: [0, 0], mcp: [0, 0], subagent: [0, 0] } as Record<Category, [number, number]>;
+    }
+    return (Object.keys(CATEGORY_CONFIG) as Category[]).reduce((acc, category) => {
+      const tools = activeAgent.tools[category].flatMap(server => server.tools);
+      acc[category] = [
+        tools.filter(tool => selectedTools.includes(tool.name)).length,
+        tools.length,
+      ];
+      return acc;
+    }, {} as Record<Category, [number, number]>);
+  }, [activeAgent, selectedTools]);
+
+  const setActiveAgentTools = useCallback((tools: string[]) => {
+    if (!activeAgent) return;
+    onSelectionChange(activeAgent.name, tools);
+  }, [activeAgent, onSelectionChange]);
+
   const handleToggleTool = useCallback((toolName: string) => {
     if (disabled) return;
+    setActiveAgentTools(
+      selectedTools.includes(toolName)
+        ? selectedTools.filter(name => name !== toolName)
+        : [...selectedTools, toolName]
+    );
+  }, [disabled, selectedTools, setActiveAgentTools]);
 
-    if (selectedTools.includes(toolName)) {
-      onSelectionChange(selectedTools.filter(t => t !== toolName));
-    } else {
-      onSelectionChange([...selectedTools, toolName]);
-    }
-  }, [disabled, selectedTools, onSelectionChange]);
-
-  const handleToggleServer = useCallback((serverName: string, select: boolean) => {
+  const handleToggleServer = useCallback((server: ServerInfo, select: boolean) => {
     if (disabled) return;
-
-    const server = servers.find(s => s.name === serverName);
-    if (!server) return;
-
-    const serverToolNames = server.tools.map(t => t.name);
-
+    const serverToolNames = server.tools.map(tool => tool.name);
     if (select) {
-      const newSelection = [...selectedTools];
+      const next = [...selectedTools];
       serverToolNames.forEach(name => {
-        if (!newSelection.includes(name)) {
-          newSelection.push(name);
-        }
+        if (!next.includes(name)) next.push(name);
       });
-      onSelectionChange(newSelection);
+      setActiveAgentTools(next);
     } else {
-      onSelectionChange(selectedTools.filter(t => !serverToolNames.includes(t)));
+      setActiveAgentTools(
+        selectedTools.filter(name => !serverToolNames.includes(name))
+      );
     }
-  }, [disabled, servers, selectedTools, onSelectionChange]);
+  }, [disabled, selectedTools, setActiveAgentTools]);
 
   const handleToggleExpandServer = useCallback((serverName: string) => {
     setExpandedServers(prev => {
@@ -450,302 +330,91 @@ export function ToolSelector({
     });
   }, []);
 
-  const handleToggleSubagent = useCallback(async (subagent: SubagentSchema) => {
-    if (disabled || !token) return;
-
-    const toolName = `subagent_${subagent.name}`;
-    const isSelected = selectedTools.includes(toolName);
-    const newEnabled = !isSelected;
-
-    if (newEnabled) {
-      onSelectionChange([...selectedTools, toolName]);
-    } else {
-      onSelectionChange(selectedTools.filter(t => t !== toolName));
-    }
-
-    setSubagents(prev =>
-      prev.map(agent =>
-        agent.name === subagent.name ? { ...agent, enabled: newEnabled } : agent
-      )
-    );
-
-    setTogglingAgents(prev => new Set(prev).add(subagent.name));
-
-    try {
-      await toggleSubagent(subagent.name, newEnabled, token);
-    } catch (err) {
-      console.error('Failed to toggle subagent:', err);
-
-      if (newEnabled) {
-        onSelectionChange(selectedTools.filter(t => t !== toolName));
-      } else {
-        onSelectionChange([...selectedTools, toolName]);
-      }
-
-      setSubagents(prev =>
-        prev.map(agent =>
-          agent.name === subagent.name ? { ...agent, enabled: !newEnabled } : agent
-        )
-      );
-    } finally {
-      setTogglingAgents(prev => {
-        const next = new Set(prev);
-        next.delete(subagent.name);
-        return next;
-      });
-    }
-  }, [disabled, token, selectedTools, onSelectionChange]);
-
-  const handleShowAgentInfo = useCallback((name: string) => {
-    setShowingInfoAgent(prev => (prev === name ? null : name));
-  }, []);
-
-  // Separate builtin and MCP servers
-  const { builtinServers, mcpServers } = useMemo(() => ({
-    builtinServers: servers.filter(s => s.type === 'local'),
-    mcpServers: servers.filter(s => s.type === 'mcp'),
-  }), [servers]);
-
-  // Calculate selected counts
-  const builtinTools = builtinServers.flatMap(s => s.tools);
-  const mcpTools = mcpServers.flatMap(s => s.tools);
-  const builtinSelectedCount = builtinTools.filter(t => selectedTools.includes(t.name)).length;
-  const mcpSelectedCount = mcpTools.filter(t => selectedTools.includes(t.name)).length;
-  const subagentSelectedCount = subagents.filter(s =>
-    selectedTools.includes(`subagent_${s.name}`)
-  ).length;
-  const hasSubagents = isSubagentLoading || subagentError !== null || subagents.length > 0;
-  const infoAgent = showingInfoAgent
-    ? subagents.find(agent => agent.name === showingInfoAgent)
-    : null;
-
   return (
     <div className="mb-2">
-      {/* ========== Header Row ========== */}
-      <div className="flex items-center gap-3 mb-2">
-        {/* Tools Header */}
-        <button
-          onClick={() => {
-            setIsToolsExpanded(!isToolsExpanded);
-            if (!isToolsExpanded) {
-              setIsMCPExpanded(false);
-              setIsAgentsExpanded(false);
-            }
-          }}
-          disabled={isLoading}
-          className={`
-            flex items-center gap-2 px-3 py-2 rounded-lg text-sm
-            transition-colors duration-150 whitespace-nowrap
-            ${isLoading
-              ? 'text-gray-400 cursor-not-allowed'
-              : isToolsExpanded
-                ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20'
-            }
-          `}
-        >
-          <Wrench className="w-4 h-4 text-orange-500" />
-          <span className="font-medium">Tools</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            ({builtinSelectedCount}/{builtinTools.length})
-          </span>
-          {isToolsExpanded ? (
-            <ChevronUp className="w-4 h-4" />
-          ) : (
-            <ChevronDown className="w-4 h-4" />
-          )}
-        </button>
-
-        {/* MCP Header */}
-        {mcpServers.length > 0 && (
-          <button
-            onClick={() => {
-              setIsMCPExpanded(!isMCPExpanded);
-              if (!isMCPExpanded) {
-                setIsToolsExpanded(false);
-                setIsAgentsExpanded(false);
-              }
-            }}
-            disabled={isLoading}
-            className={`
-              flex items-center gap-2 px-3 py-2 rounded-lg text-sm
-              transition-colors duration-150 whitespace-nowrap
-              ${isLoading
-                ? 'text-gray-400 cursor-not-allowed'
-                : isMCPExpanded
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-              }
-            `}
-          >
-            <Globe className="w-4 h-4 text-blue-500" />
-            <span className="font-medium">MCP</span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              ({mcpSelectedCount}/{mcpTools.length})
-            </span>
-            <span className="text-xs text-gray-400 dark:text-gray-500">
-              {mcpServers.length} server{mcpServers.length > 1 ? 's' : ''}
-            </span>
-            {isMCPExpanded ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </button>
+      <div className="flex items-center gap-2 mb-2 overflow-x-auto">
+        {isLoading && (
+          <Loader2 className="w-4 h-4 animate-spin text-gray-400 flex-shrink-0" />
         )}
 
-        {/* Agents Header */}
-        {hasSubagents && (
-          <button
-            onClick={() => {
-              setIsAgentsExpanded(!isAgentsExpanded);
-              if (!isAgentsExpanded) {
-                setIsToolsExpanded(false);
-                setIsMCPExpanded(false);
-              }
-            }}
-            disabled={isSubagentLoading}
-            className={`
-              flex items-center gap-2 px-3 py-2 rounded-lg text-sm
-              transition-colors duration-150 whitespace-nowrap
-              ${isSubagentLoading
-                ? 'text-gray-400 cursor-not-allowed'
-                : isAgentsExpanded
-                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20'
-              }
-            `}
+        {manifest.length > 0 && (
+          <select
+            value={activeAgent?.name ?? agentName}
+            onChange={(event) => onAgentChange(event.target.value)}
+            disabled={disabled || isLoading}
+            className="px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
           >
-            <Bot className="w-4 h-4 text-purple-500" />
-            <span className="font-medium">Agents</span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              ({subagentSelectedCount}/{subagents.length})
-            </span>
-            {isAgentsExpanded ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </button>
+            {manifest.map(agent => (
+              <option key={agent.name} value={agent.name}>
+                {agent.name}
+              </option>
+            ))}
+          </select>
         )}
+
+        {(Object.keys(CATEGORY_CONFIG) as Category[]).map(category => {
+          const config = CATEGORY_CONFIG[category];
+          const Icon = config.icon;
+          const [selectedCount, totalCount] = counts[category] ?? [0, 0];
+          if (totalCount === 0) return null;
+
+          return (
+            <button
+              key={category}
+              type="button"
+              onClick={() => {
+                setActiveCategory(prev => prev === category ? null : category);
+              }}
+              disabled={isLoading}
+              className={`
+                flex items-center gap-2 px-3 py-2 rounded-lg text-sm
+                transition-colors duration-150 whitespace-nowrap
+                ${activeCategory === category
+                  ? config.activeClass
+                  : `text-gray-700 dark:text-gray-300 ${config.hoverClass}`
+                }
+              `}
+            >
+              <Icon className={`w-4 h-4 ${config.iconClass}`} />
+              <span className="font-medium">{config.label}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                ({selectedCount}/{totalCount})
+              </span>
+              {activeCategory === category ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ========== Single Expanded Panel ========== */}
-      {(isToolsExpanded || isMCPExpanded || isAgentsExpanded) && (
+      {error && (
+        <div className="text-sm text-red-500 text-center py-2">{error}</div>
+      )}
+
+      {activeCategory && (
         <div className="bg-gray-50/50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-600 p-3 space-y-2">
-          {/* Tools Expanded Panel */}
-          {isToolsExpanded && (
-            <>
-              {isLoading ? (
-                <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-                  Loading tools...
-                </div>
-              ) : error ? (
-                <div className="text-sm text-red-500 text-center py-2">
-                  {error}
-                </div>
-              ) : builtinServers.length > 0 ? (
-                builtinServers.map(server => (
-                  <ServerCard
-                    key={server.name}
-                    server={server}
-                    selectedTools={selectedTools}
-                    onToggleTool={handleToggleTool}
-                    onToggleAll={handleToggleServer}
-                    disabled={disabled}
-                    isExpanded={expandedServers.has(server.name)}
-                    onToggleExpand={() => handleToggleExpandServer(server.name)}
-                  />
-                ))
-              ) : (
-                <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-                  No built-in tools available
-                </div>
-              )}
-            </>
-          )}
-
-          {/* MCP Expanded Panel */}
-          {isMCPExpanded && (
-            <>
-              {mcpServers.map(server => (
-                <ServerCard
-                  key={server.name}
-                  server={server}
-                  selectedTools={selectedTools}
-                  onToggleTool={handleToggleTool}
-                  onToggleAll={handleToggleServer}
-                  disabled={disabled}
-                  isExpanded={expandedServers.has(server.name)}
-                  onToggleExpand={() => handleToggleExpandServer(server.name)}
-                />
-              ))}
-            </>
-          )}
-
-          {/* Agents Expanded Panel */}
-          {isAgentsExpanded && (
-            <>
-              {isSubagentLoading ? (
-                <div className="flex items-center justify-center gap-2 py-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    Loading agents...
-                  </span>
-                </div>
-              ) : subagentError ? (
-                <div className="text-sm text-red-500 text-center py-2">
-                  {subagentError}
-                </div>
-              ) : subagents.length > 0 ? (
-                <>
-                  <div className="flex flex-wrap gap-1.5">
-                    {subagents.map(subagent => (
-                      <SubagentChip
-                        key={subagent.name}
-                        subagent={subagent}
-                        isSelected={selectedTools.includes(
-                          `subagent_${subagent.name}`
-                        )}
-                        onToggle={() => handleToggleSubagent(subagent)}
-                        onShowInfo={() => handleShowAgentInfo(subagent.name)}
-                        isShowingInfo={showingInfoAgent === subagent.name}
-                        disabled={disabled}
-                        isToggling={togglingAgents.has(subagent.name)}
-                      />
-                    ))}
-                  </div>
-
-                  {infoAgent && (
-                    <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {infoAgent.display_name}
-                        </span>
-                        {infoAgent.builtin && (
-                          <span className="text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300 rounded">
-                            Built-in
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        {infoAgent.description}
-                      </p>
-                      {infoAgent.tools.length > 0 && (
-                        <div className="text-xs text-gray-500 dark:text-gray-500">
-                          <span className="font-medium">Tools:</span>{' '}
-                          {infoAgent.tools.join(', ')}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-                  No agents available
-                </div>
-              )}
-            </>
+          {currentServers.length > 0 ? (
+            currentServers.map(server => (
+              <ServerCard
+                key={`${server.type}:${server.name}`}
+                server={server}
+                selectedTools={selectedTools}
+                onToggleTool={handleToggleTool}
+                onToggleAll={handleToggleServer}
+                disabled={disabled}
+                isExpanded={expandedServers.has(`${server.type}:${server.name}`)}
+                onToggleExpand={() => {
+                  handleToggleExpandServer(`${server.type}:${server.name}`);
+                }}
+              />
+            ))
+          ) : (
+            <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+              No tools available
+            </div>
           )}
         </div>
       )}

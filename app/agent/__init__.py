@@ -9,6 +9,7 @@ from app.agent.types import (
     AgentChunkType,
     AgentConfig,
     AgentContext,
+    AgentToolBinding,
     AgentMessage,
     AgentSession,
     ToolCallInfo,
@@ -84,8 +85,20 @@ def _register_default_agent():
         name="default",
         description="通用助手 Agent，可以进行对话、使用工具完成任务。",
         system_prompt=DEFAULT_AGENT_SYSTEM_PROMPT,
-        # 不再绑定默认工具 - 完全由前端决定
-        tools=[],
+        tool_binding=AgentToolBinding(
+            local=[
+                "calculator",
+                "datetime",
+                "web_search",
+                "image_generator",
+                "knowledge_base_search",
+                "diet_plan",
+                "diet_log",
+                "diet_analysis",
+            ],
+            mcp=["amap"],
+            subagents=["subagent_diet_planner"],
+        ),
         max_iterations=10,
     )
 
@@ -98,6 +111,7 @@ __all__ = [
     "AgentChunkType",
     "AgentConfig",
     "AgentContext",
+    "AgentToolBinding",
     "AgentMessage",
     "AgentSession",
     "ToolCallInfo",

@@ -96,14 +96,18 @@ class AgentContextBuilder:
         )
 
         # 4. 获取可用 Tool schemas
-        # Use selected_tools if provided, otherwise get all available tools
-        # 传入 user_id 以支持 Subagent Tools
-        tools_to_use = selected_tools
+        # Agent 注册时的 tool_binding 是权限边界：
+        # - selected_tools 为空时，使用 Agent 绑定的所有工具
+        # - selected_tools 非空时，只使用 selected_tools 与绑定工具的交集
         if user_id:
             from app.services.subagent_service import subagent_service
 
             await subagent_service.sync_user_subagents(user_id)
-        available_tools = AgentHub.get_tool_schemas(tools_to_use, user_id=user_id)
+        available_tools = AgentHub.get_agent_tool_schemas(
+            agent_name,
+            user_id=user_id,
+            selected_tools=selected_tools,
+        )
 
         # 5. user_profile user_instruction
         user_profile = None

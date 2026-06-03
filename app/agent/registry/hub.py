@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Protocol, Type, runtime_checkable
 
-from app.agent.types import AgentConfig
+from app.agent.types import AgentConfig, AgentToolBinding
 from app.agent.tools.base import BaseTool, ToolExecutor
 
 logger = logging.getLogger(__name__)
@@ -99,6 +99,10 @@ class AgentHub:
     @classmethod
     def list_agents(cls) -> list[str]:
         return list(cls._agents.keys())
+
+    @classmethod
+    def list_agent_configs(cls) -> list[AgentConfig]:
+        return [entry.config for entry in cls._agents.values()]
 
     @classmethod
     def clear_agents(cls) -> None:
@@ -210,6 +214,174 @@ class AgentHub:
             else:
                 servers.extend(p.list_servers_with_tools())
         return servers
+
+    @classmethod
+    def resolve_agent_tool_names(
+        cls,
+        agent_name: str,
+        user_id: Optional[str] = None,
+        selected_tools: Optional[list[str]] = None,
+    ) -> list[str]:
+        """Return the final tool names available to an agent.
+
+        Agent tool bindings are the permission boundary. If selected_tools is
+        None or empty, the agent gets all tools allowed by its binding. If
+        selected_tools is non-empty, only selected tools within that binding are
+        returned.
+        """
+        try:
+            config = cls.get_agent_config(agent_name)
+        except KeyError:
+            config = AgentConfig(
+                name=agent_name,
+                description="Default agent",
+                system_prompt="You are a helpful assistant.",
+            )
+
+        bound_names = cls.resolve_tool_binding(config.tool_binding, user_id=user_id)
+        if not selected_tools:
+            return bound_names
+
+        bound_set = set(bound_names)
+        return [name for name in selected_tools if name in bound_set]
+
+    @classmethod
+    def get_agent_tool_schemas(
+        cls,
+        agent_name: str,
+        user_id: Optional[str] = None,
+        selected_tools: Optional[list[str]] = None,
+    ) -> list[dict]:
+        tool_names = cls.resolve_agent_tool_names(
+            agent_name,
+            user_id=user_id,
+            selected_tools=selected_tools,
+        )
+        return cls.get_tool_schemas(tool_names, user_id=user_id)
+
+    @classmethod
+    def build_agent_tool_manifest(
+        cls,
+        user_id: Optional[str] = None,
+    ) -> list[dict]:
+        """Build the frontend-facing tools view grouped by agent and type."""
+        agents: list[dict] = []
+        all_servers = cls.list_all_servers(user_id=user_id)
+
+        for config in cls.list_agent_configs():
+            bound_names = cls.resolve_tool_binding(config.tool_binding, user_id=user_id)
+            bound_set = set(bound_names)
+            grouped = {
+                "tool": cls._filter_servers_by_names(
+                    all_servers, bound_set, server_type="local"
+                ),
+                "mcp": cls._filter_servers_by_names(
+                    all_servers, bound_set, server_type="mcp"
+                ),
+                "subagent": cls._filter_servers_by_names(
+                    all_servers, bound_set, server_type="subagent"
+                ),
+            }
+            agents.append(
+                {
+                    "name": config.name,
+                    "description": config.description,
+                    "tools": grouped,
+                    "default_tools": bound_names,
+                }
+            )
+
+        return agents
+
+    @classmethod
+    def resolve_tool_binding(
+        cls,
+        binding: AgentToolBinding,
+        user_id: Optional[str] = None,
+    ) -> list[str]:
+        names: list[str] = []
+        names.extend(cls._resolve_provider_binding("local", binding.local, user_id))
+        names.extend(cls._resolve_mcp_server_binding(binding.mcp, user_id))
+        names.extend(
+            cls._resolve_provider_binding("subagent", binding.subagents, user_id)
+        )
+        return list(dict.fromkeys(names))
+
+    @classmethod
+    def _resolve_mcp_server_binding(
+        cls,
+        server_names: list[str],
+        user_id: Optional[str] = None,
+    ) -> list[str]:
+        provider = cls._providers.get("mcp")
+        if not provider or not server_names:
+            return []
+
+        if user_id:
+            available = provider.list_tool_names(user_id)  # type: ignore
+        else:
+            available = provider.list_tool_names()
+
+        expanded: list[str] = []
+        if hasattr(provider, "list_tool_names_by_servers"):
+            if user_id:
+                expanded = provider.list_tool_names_by_servers(  # type: ignore
+                    server_names, user_id
+                )
+            else:
+                expanded = provider.list_tool_names_by_servers(server_names)  # type: ignore
+
+        # Keep explicit MCP tool names working for older configs.
+        allowed_names = set(expanded) | set(server_names)
+        return [name for name in available if name in allowed_names]
+
+    @classmethod
+    def _resolve_provider_binding(
+        cls,
+        provider_name: str,
+        patterns: list[str],
+        user_id: Optional[str] = None,
+    ) -> list[str]:
+        provider = cls._providers.get(provider_name)
+        if not provider or not patterns:
+            return []
+
+        if provider_name in {"subagent", "mcp"} and user_id:
+            available = provider.list_tool_names(user_id)  # type: ignore
+        else:
+            available = provider.list_tool_names()
+
+        normalized_patterns = [
+            (
+                f"subagent_{p}"
+                if provider_name == "subagent" and not p.startswith("subagent_")
+                else p
+            )
+            for p in patterns
+        ]
+        allowed_names = set(normalized_patterns)
+        return [name for name in available if name in allowed_names]
+
+    @staticmethod
+    def _filter_servers_by_names(
+        servers: list[dict],
+        names: set[str],
+        server_type: str,
+    ) -> list[dict]:
+        filtered: list[dict] = []
+        for server in servers:
+            if server.get("type") != server_type:
+                continue
+            tools = [t for t in server.get("tools", []) if t.get("name") in names]
+            if tools:
+                filtered.append(
+                    {
+                        "name": server.get("name", ""),
+                        "type": server.get("type", ""),
+                        "tools": tools,
+                    }
+                )
+        return filtered
 
     @classmethod
     def create_tool_executor(

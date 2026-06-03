@@ -36,7 +36,11 @@ class VectorStoreConfig(BaseModel):
 
 class EmbeddingConfig(BaseModel):
     """Embedding model configuration."""
+    type: Literal["huggingface", "siliconflow"] = "huggingface"
     model_name: str = "BAAI/bge-small-zh-v1.5"
+    base_url: Optional[str] = "https://api.siliconflow.cn/v1"
+    api_key: Optional[str] = None
+    batch_size: int = 64
 
 
 class RetrievalConfig(BaseModel):
@@ -115,5 +119,4 @@ class RAGConfig(BaseModel):
     reranker: RerankerConfig = RerankerConfig()
     cache: CacheConfig = CacheConfig()
     data_source: DataSourceConfig = DataSourceConfig()
-
 

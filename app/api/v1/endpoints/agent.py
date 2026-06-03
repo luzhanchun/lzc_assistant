@@ -41,7 +41,7 @@ class ServerInfo(BaseModel):
     """Server info for the tools API."""
 
     name: str
-    type: str  # "local" or "mcp"
+    type: str  # "local", "mcp", or "subagent"
     tools: List[ToolSchema]
 
 
@@ -49,6 +49,29 @@ class ToolsListResponse(BaseModel):
     """Response model for the tools list endpoint."""
 
     servers: List[ServerInfo]
+
+
+class AgentToolGroups(BaseModel):
+    """Tools available to an agent, grouped by tool source type."""
+
+    tool: List[ServerInfo]
+    mcp: List[ServerInfo]
+    subagent: List[ServerInfo]
+
+
+class AgentToolManifestItem(BaseModel):
+    """Single agent entry in the tool manifest."""
+
+    name: str
+    description: str
+    tools: AgentToolGroups
+    default_tools: List[str]
+
+
+class AgentToolManifestResponse(BaseModel):
+    """Response model for the agent tool manifest endpoint."""
+
+    agents: List[AgentToolManifestItem]
 
 
 class MCPServerRequest(BaseModel):
@@ -235,6 +258,56 @@ async def list_available_tools(http_request: Request) -> ToolsListResponse:
     ]
 
     return ToolsListResponse(servers=servers)
+
+
+@router.get("/agent/tool-manifest")
+async def get_agent_tool_manifest(
+    http_request: Request,
+) -> AgentToolManifestResponse:
+    """List tools grouped by registered agent and source type."""
+    user_id = getattr(http_request.state, "user_id", None)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="需要登录")
+
+    await subagent_service.sync_user_subagents(user_id)
+    agents_data = AgentHub.build_agent_tool_manifest(user_id=user_id)
+
+    return AgentToolManifestResponse(
+        agents=[
+            AgentToolManifestItem(
+                name=agent["name"],
+                description=agent["description"],
+                tools=AgentToolGroups(
+                    tool=[
+                        ServerInfo(
+                            name=server["name"],
+                            type=server["type"],
+                            tools=[ToolSchema(**tool) for tool in server["tools"]],
+                        )
+                        for server in agent["tools"]["tool"]
+                    ],
+                    mcp=[
+                        ServerInfo(
+                            name=server["name"],
+                            type=server["type"],
+                            tools=[ToolSchema(**tool) for tool in server["tools"]],
+                        )
+                        for server in agent["tools"]["mcp"]
+                    ],
+                    subagent=[
+                        ServerInfo(
+                            name=server["name"],
+                            type=server["type"],
+                            tools=[ToolSchema(**tool) for tool in server["tools"]],
+                        )
+                        for server in agent["tools"]["subagent"]
+                    ],
+                ),
+                default_tools=agent["default_tools"],
+            )
+            for agent in agents_data
+        ]
+    )
 
 
 @router.get("/agent/mcp-servers")

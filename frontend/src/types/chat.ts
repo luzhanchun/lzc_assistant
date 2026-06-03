@@ -96,12 +96,29 @@ export interface ToolSchema {
 
 export interface ServerInfo {
   name: string;
-  type: 'local' | 'mcp';
+  type: 'local' | 'mcp' | 'subagent';
   tools: ToolSchema[];
 }
 
 export interface ToolsListResponse {
   servers: ServerInfo[];
+}
+
+export interface AgentToolGroups {
+  tool: ServerInfo[];
+  mcp: ServerInfo[];
+  subagent: ServerInfo[];
+}
+
+export interface AgentToolManifestItem {
+  name: string;
+  description: string;
+  tools: AgentToolGroups;
+  default_tools: string[];
+}
+
+export interface AgentToolManifestResponse {
+  agents: AgentToolManifestItem[];
 }
 
 export interface MCPServer {
