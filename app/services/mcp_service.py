@@ -4,6 +4,7 @@ MCP server management service.
 
 import logging
 import re
+from hashlib import sha256
 from typing import List
 
 from sqlalchemy import select
@@ -64,7 +65,19 @@ class MCPService:
             await session.flush()
 
         if enabled:
-            await self.register_server(server)
+            try:
+                registered = await self.register_server(server)
+            except Exception as exc:
+                await self._cleanup_failed_create(user_id, name)
+                raise ValueError(f"MCP 工具加载失败：{exc}") from exc
+
+            if not registered:
+                provider = self._get_provider()
+                registry_name = self._registry_name(user_id, name)
+                load_error = provider.get_last_load_error(registry_name)
+                await self._cleanup_failed_create(user_id, name)
+                detail = load_error or "未加载到任何工具"
+                raise ValueError(f"MCP 工具加载失败：{detail}")
 
         return server
 
@@ -74,8 +87,16 @@ class MCPService:
 
         provider = self._get_provider()
         headers = self._build_headers(server)
-        provider.register_server(server.name, server.endpoint, headers)
-        loaded = await provider.load_server_tools(server.name)
+        registry_name = self._registry_name(server.user_id, server.name)
+        provider.register_server(
+            registry_name,
+            server.endpoint,
+            headers,
+            scope="user",
+            user_id=server.user_id,
+            display_name=server.name,
+        )
+        loaded = await provider.load_server_tools(registry_name)
         return len(loaded) > 0
 
     async def register_all_for_user(self, user_id: str) -> None:
@@ -140,7 +161,7 @@ class MCPService:
                 existing.enabled = enabled
 
         if not existing.enabled:
-            self._unregister_server(existing.name)
+            self._unregister_server(existing.user_id, existing.name)
             return existing
 
         await self.register_server(existing)
@@ -158,7 +179,7 @@ class MCPService:
 
             await session.delete(existing)
 
-        self._unregister_server(name)
+        self._unregister_server(user_id, name)
         return True
 
     def _validate_name(self, name: str) -> None:
@@ -191,9 +212,23 @@ class MCPService:
     def _get_provider(self) -> MCPToolProvider:
         return AgentHub.get_provider("mcp")  # type: ignore
 
-    def _unregister_server(self, name: str) -> None:
+    def _registry_name(self, user_id: str, name: str) -> str:
+        user_hash = sha256(user_id.encode("utf-8")).hexdigest()[:12]
+        return f"user_{user_hash}_{name}"
+
+    def _unregister_server(self, user_id: str, name: str) -> None:
         provider = self._get_provider()
-        provider.unregister_server(name)
+        provider.unregister_server(self._registry_name(user_id, name))
+
+    async def _cleanup_failed_create(self, user_id: str, name: str) -> None:
+        try:
+            await self.delete_server(user_id, name)
+        except Exception as exc:
+            logger.warning(
+                "Failed to cleanup MCP server %s after load failure: %s",
+                name,
+                exc,
+            )
 
 
 mcp_service = MCPService()

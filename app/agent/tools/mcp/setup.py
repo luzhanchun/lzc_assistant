@@ -44,7 +44,12 @@ async def _register_amap_mcp() -> None:
 
     # 直接获取 MCPToolProvider 并调用方法
     mcp_provider: MCPToolProvider = AgentHub.get_provider("mcp")  # type: ignore
-    mcp_provider.register_server("amap", endpoint)
+    mcp_provider.register_server(
+        "amap",
+        endpoint,
+        scope="global",
+        display_name="amap",
+    )
 
     try:
         loaded = await mcp_provider.load_server_tools("amap")

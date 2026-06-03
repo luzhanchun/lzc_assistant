@@ -44,6 +44,8 @@ class MCPClient:
         self.timeout = timeout
         self.headers = headers or {}
         self._session_id: Optional[str] = None
+        self._initialized = False
+        self._initialize_result: dict = {}
 
     def _generate_request_id(self) -> str:
         """生成唯一请求 ID。"""
@@ -123,6 +125,68 @@ class MCPClient:
                     message=f"Request error: {str(e)}",
                 )
 
+    async def _send_notification(
+        self,
+        method: str,
+        params: Optional[dict] = None,
+    ) -> None:
+        """发送 JSON-RPC notification，不要求响应体。"""
+        payload = {
+            "jsonrpc": "2.0",
+            "method": method,
+        }
+        if params:
+            payload["params"] = params
+
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            **self.headers,
+        }
+        if self._session_id:
+            headers["Mcp-Session-Id"] = self._session_id
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                response = await client.post(
+                    self.endpoint,
+                    json=payload,
+                    headers=headers,
+                )
+                response.raise_for_status()
+
+                if "Mcp-Session-Id" in response.headers:
+                    self._session_id = response.headers["Mcp-Session-Id"]
+
+                if not response.content:
+                    return
+
+                content_type = response.headers.get("content-type", "")
+                if "application/json" not in content_type:
+                    return
+
+                result = response.json()
+                if "error" in result:
+                    error = result["error"]
+                    raise MCPError(
+                        code=error.get("code", -1),
+                        message=error.get("message", "Unknown error"),
+                        data=error.get("data"),
+                    )
+
+            except httpx.HTTPStatusError as e:
+                logger.error(f"MCP notification HTTP error: {e}")
+                raise MCPError(
+                    code=-1,
+                    message=f"HTTP error: {e.response.status_code}",
+                )
+            except httpx.RequestError as e:
+                logger.error(f"MCP notification request error: {e}")
+                raise MCPError(
+                    code=-1,
+                    message=f"Request error: {str(e)}",
+                )
+
     async def initialize(self) -> dict:
         """
         初始化 MCP 会话。
@@ -130,7 +194,10 @@ class MCPClient:
         Returns:
             服务器信息和能力
         """
-        return await self._send_request(
+        if self._initialized:
+            return self._initialize_result
+
+        result = await self._send_request(
             "initialize",
             {
                 "protocolVersion": "2024-11-05",
@@ -144,6 +211,10 @@ class MCPClient:
                 },
             },
         )
+        await self._send_notification("notifications/initialized")
+        self._initialized = True
+        self._initialize_result = result
+        return result
 
     async def list_tools(self) -> list[dict]:
         """

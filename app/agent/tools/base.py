@@ -153,6 +153,7 @@ class MCPTool(BaseTool):
             if kwargs and "user_id" in kwargs:
                 kwargs.pop("user_id")
 
+            await client.initialize()
             return await client.call_tool(self.mcp_tool_name, kwargs)
 
         except Exception as e:

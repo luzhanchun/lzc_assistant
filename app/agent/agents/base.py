@@ -247,7 +247,7 @@ class BaseAgent(ABC):
             AgentChunk: 执行过程中的输出块
         """
         from app.llm.context import llm_context
-
+        #从上下文构建 LLM 输入消息列表
         messages = self.context_builder.build_messages(context)
         tool_schemas = context.available_tools
 
@@ -260,7 +260,7 @@ class BaseAgent(ABC):
             selected_tool_names if selected_tool_names else None,
             user_id=context.user_id,
         )
-
+        #ReAct 循环
         for iteration in range(self.max_iterations):
             try:
                 with llm_context(
@@ -274,6 +274,7 @@ class BaseAgent(ABC):
                         async for chunk in self._stream_with_tools(
                             invoker, messages, tool_schemas
                         ):
+                            #如果有 chunk.content，立刻 yield 出去，并收集到collected_content
                             if hasattr(chunk, "content") and chunk.content:
                                 collected_content += chunk.content
                                 yield AgentChunk(
@@ -283,6 +284,7 @@ class BaseAgent(ABC):
 
                             # Collect tool calls from streaming chunks
                             # LangChain uses tool_call_chunks for streaming partial data
+                            #如果有 tool_call_chunks 或 tool_calls，先收集到collected_tool_calls：
                             if (
                                 hasattr(chunk, "tool_call_chunks")
                                 and chunk.tool_call_chunks

@@ -64,8 +64,8 @@ class ToolProvider(Protocol):
 
 @dataclass(frozen=True)
 class _AgentEntry:
-    cls: Type["BaseAgent"]
-    config: AgentConfig
+    cls: Type["BaseAgent"]#BaseAgent类
+    config: AgentConfig#AgentConfig类的一个实例
 
 
 class AgentHub:
@@ -86,6 +86,7 @@ class AgentHub:
         entry = cls._agents.get(name)
         if not entry:
             raise KeyError(f"Agent '{name}' not found")
+        #返回一个由_AgentEntry实例构造的agent实例
         return entry.cls(entry.config)
 
     @classmethod
@@ -143,8 +144,8 @@ class AgentHub:
     @classmethod
     def get_tool(cls, name: str, user_id: Optional[str] = None) -> Optional[BaseTool]:
         for p in cls._providers.values():
-            # SubagentToolProvider 需要 user_id
-            if p.name == "subagent" and user_id:
+            # SubagentToolProvider 和 MCPToolProvider 需要 user_id 做用户级过滤
+            if p.name in {"subagent", "mcp"} and user_id:
                 tool = p.get_tool(name, user_id)  # type: ignore
             else:
                 tool = p.get_tool(name)
@@ -161,7 +162,7 @@ class AgentHub:
         if names is None:
             schemas: list[dict] = []
             for p in cls._providers.values():
-                if p.name == "subagent" and user_id:
+                if p.name in {"subagent", "mcp"} and user_id:
                     schemas.extend(p.get_tool_schemas(None, user_id))  # type: ignore
                 else:
                     schemas.extend(p.get_tool_schemas(None))
@@ -171,7 +172,7 @@ class AgentHub:
         result: list[dict] = []
         for n in names:
             for p in cls._providers.values():
-                if p.name == "subagent" and user_id:
+                if p.name in {"subagent", "mcp"} and user_id:
                     schema = p.get_tool_schema(n, user_id)  # type: ignore
                 else:
                     schema = p.get_tool_schema(n)
@@ -184,7 +185,7 @@ class AgentHub:
     def list_tools(cls, user_id: Optional[str] = None) -> list[str]:
         names: list[str] = []
         for p in cls._providers.values():
-            if p.name == "subagent" and user_id:
+            if p.name in {"subagent", "mcp"} and user_id:
                 names.extend(p.list_tool_names(user_id))  # type: ignore
             else:
                 names.extend(p.list_tool_names())
@@ -204,7 +205,7 @@ class AgentHub:
         """
         servers: list[dict] = []
         for p in cls._providers.values():
-            if p.name == "subagent" and user_id:
+            if p.name in {"subagent", "mcp"} and user_id:
                 servers.extend(p.list_servers_with_tools(user_id))  # type: ignore
             else:
                 servers.extend(p.list_servers_with_tools())
@@ -219,12 +220,12 @@ class AgentHub:
         if tool_names is None:
             tools: dict[str, BaseTool] = {}
             for p in cls._providers.values():
-                if p.name == "subagent" and user_id:
+                if p.name in {"subagent", "mcp"} and user_id:
                     tool_list = p.list_tool_names(user_id)  # type: ignore
                 else:
                     tool_list = p.list_tool_names()
                 for name in tool_list:
-                    if p.name == "subagent" and user_id:
+                    if p.name in {"subagent", "mcp"} and user_id:
                         tool = p.get_tool(name, user_id)  # type: ignore
                     else:
                         tool = p.get_tool(name)
