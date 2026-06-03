@@ -103,6 +103,7 @@ class AgentContextBuilder:
             from app.services.subagent_service import subagent_service
 
             await subagent_service.sync_user_subagents(user_id)
+        #llm最终可以看到的工具shema
         available_tools = AgentHub.get_agent_tool_schemas(
             agent_name,
             user_id=user_id,

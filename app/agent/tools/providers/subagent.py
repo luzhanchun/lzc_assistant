@@ -17,14 +17,14 @@ class SubagentToolProvider:
     """
     Subagent 工具提供者。
 
-    根据用户的 Subagent 启用配置，动态生成对应的 Tool。
+    根据用户可用的 Subagent 配置，动态生成对应的 Tool。
     """
 
     name = "subagent"
 
     def get_tools_for_user(self, user_id: str) -> dict[str, BaseTool]:
         """
-        获取用户启用的所有 Subagent Tool。
+        获取用户可用的所有 Subagent Tool。
 
         Args:
             user_id: 用户 ID
@@ -34,11 +34,14 @@ class SubagentToolProvider:
         """
         from app.agent.subagents import subagent_registry
 
-        # 获取用户启用的 Subagent 并生成 Tool
-        tools = {}
-        subagent_tools = subagent_registry.get_enabled_subagent_tools(user_id)
+        tools: dict[str, BaseTool] = {}
+        for config in subagent_registry.get_all_configs(user_id):
+            subagent = subagent_registry.get_subagent(config.name, user_id)
+            if not subagent:
+                continue
+            from app.agent.subagents.tool import SubagentTool
 
-        for tool in subagent_tools:
+            tool = SubagentTool(subagent)
             tools[tool.name] = tool
 
         return tools

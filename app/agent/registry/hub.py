@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from fnmatch import fnmatch
 from typing import TYPE_CHECKING, Optional, Protocol, Type, runtime_checkable
 
 from app.agent.types import AgentConfig, AgentToolBinding
@@ -223,7 +224,7 @@ class AgentHub:
         selected_tools: Optional[list[str]] = None,
     ) -> list[str]:
         """Return the final tool names available to an agent.
-
+        根据agent绑定的工具名列表和前端传回的工具名列表,决定 Agent 可用的最终工具名称
         Agent tool bindings are the permission boundary. If selected_tools is
         None or empty, the agent gets all tools allowed by its binding. If
         selected_tools is non-empty, only selected tools within that binding are
@@ -237,7 +238,7 @@ class AgentHub:
                 description="Default agent",
                 system_prompt="You are a helpful assistant.",
             )
-
+        #返回agent绑定的所有工具名列表
         bound_names = cls.resolve_tool_binding(config.tool_binding, user_id=user_id)
         if not selected_tools:
             return bound_names
@@ -299,6 +300,10 @@ class AgentHub:
         binding: AgentToolBinding,
         user_id: Optional[str] = None,
     ) -> list[str]:
+        '''
+        把一个 AgentToolBinding 里配置的各种工具绑定，解析成最终可用的工具名列表，并且去重保序。
+        返回agent绑定的所有工具名列表
+        '''
         names: list[str] = []
         names.extend(cls._resolve_provider_binding("local", binding.local, user_id))
         names.extend(cls._resolve_mcp_server_binding(binding.mcp, user_id))
@@ -316,7 +321,7 @@ class AgentHub:
         provider = cls._providers.get("mcp")
         if not provider or not server_names:
             return []
-
+        #available是当前用户所有可见的工具名列表
         if user_id:
             available = provider.list_tool_names(user_id)  # type: ignore
         else:
@@ -332,6 +337,7 @@ class AgentHub:
                 expanded = provider.list_tool_names_by_servers(server_names)  # type: ignore
 
         # Keep explicit MCP tool names working for older configs.
+        #allowed_names为本agent绑定的mcp服务器下的所有工具名列表
         allowed_names = set(expanded) | set(server_names)
         return [name for name in available if name in allowed_names]
 
@@ -345,22 +351,29 @@ class AgentHub:
         provider = cls._providers.get(provider_name)
         if not provider or not patterns:
             return []
-
+        #available 是所有可用工具
         if provider_name in {"subagent", "mcp"} and user_id:
             available = provider.list_tool_names(user_id)  # type: ignore
         else:
             available = provider.list_tool_names()
 
-        normalized_patterns = [
-            (
-                f"subagent_{p}"
-                if provider_name == "subagent" and not p.startswith("subagent_")
-                else p
-            )
-            for p in patterns
+        normalized_patterns: list[str] = []
+        for p in patterns:
+            normalized_patterns.append(p)
+            if provider_name == "subagent":
+                if p.startswith("subagent_"):
+                    normalized_patterns.append(p.removeprefix("subagent_"))
+                else:
+                    normalized_patterns.append(f"subagent_{p}")
+
+        if "*" in normalized_patterns:
+            return available
+
+        return [
+            name
+            for name in available
+            if any(fnmatch(name, pattern) for pattern in normalized_patterns)
         ]
-        allowed_names = set(normalized_patterns)
-        return [name for name in available if name in allowed_names]
 
     @staticmethod
     def _filter_servers_by_names(
