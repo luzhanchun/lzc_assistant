@@ -63,7 +63,7 @@ class AgentContextBuilder:
             current_message: 当前用户消息
             user_id: 用户 ID
             agent_name: Agent 名称（用于选择 Agent 配置）
-            selected_tools: 用户选择的工具列表（为空则使用 Agent 默认工具）
+            selected_tools: 当前 Agent 的用户选择工具列表（None 或空列表则使用 Agent 默认工具）
             images: 用户上传的图片列表 [{data, mime_type}]
 
         Returns:
@@ -97,7 +97,7 @@ class AgentContextBuilder:
 
         # 4. 获取可用 Tool schemas
         # Agent 注册时的 tool_binding 是权限边界：
-        # - selected_tools 为空时，使用 Agent 绑定的所有工具
+        # - selected_tools 为 None 或空列表时，使用 Agent 绑定的所有工具
         # - selected_tools 非空时，只使用 selected_tools 与绑定工具的交集
         if user_id:
             from app.services.agent_mcp_binding_service import (

@@ -1,6 +1,13 @@
 """Agent 模块提示词."""
 
-from app.agent.prompts.default import DEFAULT_AGENT_SYSTEM_PROMPT
+from app.agent.prompts.agent_description import (
+    DIET_COOKING_ASSISTANT_DESCRIPTION,
+    TRAVEL_PLANNING_ASSISTANT_DESCRIPTION,
+)
+from app.agent.prompts.agent_system_prompt import (
+    DIET_COOKING_ASSISTANT_SYSTEM_PROMPT,
+    TRAVEL_PLANNING_ASSISTANT_SYSTEM_PROMPT,
+)
 from app.agent.prompts.context import USER_ID_PROMPT_TEMPLATE
 from app.agent.prompts.compression import (
     COMPRESS_SYSTEM_PROMPT,
@@ -9,7 +16,10 @@ from app.agent.prompts.compression import (
 from app.agent.prompts.vision import VISION_ANALYSIS_PROMPT_TEMPLATE
 
 __all__ = [
-    "DEFAULT_AGENT_SYSTEM_PROMPT",
+    "DIET_COOKING_ASSISTANT_DESCRIPTION",
+    "DIET_COOKING_ASSISTANT_SYSTEM_PROMPT",
+    "TRAVEL_PLANNING_ASSISTANT_DESCRIPTION",
+    "TRAVEL_PLANNING_ASSISTANT_SYSTEM_PROMPT",
     "USER_ID_PROMPT_TEMPLATE",
     "COMPRESS_SYSTEM_PROMPT",
     "COMPRESS_USER_PROMPT_TEMPLATE",

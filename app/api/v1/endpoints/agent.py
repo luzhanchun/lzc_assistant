@@ -169,7 +169,7 @@ class AgentChatRequest(BaseModel):
     session_id: Optional[str] = None
     agent_name: str = Field(default="default", max_length=100)
     stream: bool = True
-    selected_tools: Optional[List[str]] = None  # User-selected tools
+    selected_tools: Optional[Dict[str, List[str]]] = None  # User-selected tools by agent
 
     @field_validator("message")
     @classmethod
@@ -485,7 +485,7 @@ async def agent_chat(request: AgentChatRequest, http_request: Request):
     - `session_id`: Optional ID for continuing a session
     - `agent_name`: Name of the agent to use (default: "default")
     - `stream`: Whether to stream the response (default: true)
-    - `selected_tools`: Optional list of tool names to use (default: all tools)
+    - `selected_tools`: Optional map of agent name to selected tool names
 
     **Response (SSE stream when stream=true):**
     ```
@@ -518,6 +518,14 @@ async def agent_chat(request: AgentChatRequest, http_request: Request):
     user_id = getattr(http_request.state, "user_id", None)
     if not user_id:
         raise HTTPException(status_code=401, detail="需要登录")
+
+    try:
+        AgentHub.get_agent_config(request.agent_name)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Agent not found: {request.agent_name}",
+        ) from exc
 
     # Use queue-based approach to ensure backend continues even if client disconnects
     queue: asyncio.Queue[str | None] = asyncio.Queue()

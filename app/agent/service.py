@@ -91,10 +91,10 @@ def _sanitize_value(value: Any) -> Any:
 
 
 def _build_fallback_agent(name: str) -> BaseAgent:
-    from app.agent.agents import DefaultAgent
+    from app.agent.agents import Diet_Cook_Agent
     from app.agent.types import AgentConfig
 
-    return DefaultAgent(
+    return Diet_Cook_Agent(
         AgentConfig(
             name=name,
             description="Default assistant",
@@ -135,7 +135,7 @@ class AgentService:
         message: str,
         agent_name: str = "default",
         streaming: bool = False,
-        selected_tools: Optional[list[str]] = None,
+        selected_tools: Optional[dict[str, list[str]]] = None,
         images: Optional[list[dict]] = None,
     ) -> AsyncGenerator[str, None]:
         """
@@ -147,7 +147,7 @@ class AgentService:
             message: 用户消息
             agent_name: Agent 名称（用于选择 Agent，不存储在 Session 中）
             streaming: 是否启用流式输出
-            selected_tools: 用户选择的工具列表（为空则使用默认工具）
+            selected_tools: 按 Agent 名称分组的用户选择工具列表
             images: 用户上传的图片列表 [{data, mime_type}]
 
         Yields:
@@ -178,12 +178,15 @@ class AgentService:
             )
 
             # 3. 组装上下文
+            agent_selected_tools = (
+                selected_tools.get(agent_name) if selected_tools is not None else None
+            )
             context = await self.context_builder.build(
                 session,
                 message,
                 user_id,
                 agent_name=agent_name,
-                selected_tools=selected_tools,
+                selected_tools=agent_selected_tools,
                 images=images,
             )
 

@@ -6,12 +6,13 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent, type ChangeEvent } from 'react';
 import { SendHorizontal, Square, Paperclip, X } from 'lucide-react';
 import { ToolSelector } from './ToolSelector';
+import { AgentSelector } from './AgentSelector';
 import type { ImageData } from '../../types';
 
 export interface AgentChatInputProps {
   onSend: (
     message: string,
-    selectedTools?: string[],
+    selectedTools?: Record<string, string[]>,
     images?: ImageData[],
     agentName?: string
   ) => void;
@@ -42,7 +43,9 @@ export function AgentChatInput({
 }: AgentChatInputProps) {
   const [input, setInput] = useState('');
   const [isComposing, setIsComposing] = useState(false);
-  const [activeAgentName, setActiveAgentName] = useState('default');
+  const [chatAgentName, setChatAgentName] = useState('default');
+  const [toolAgentName, setToolAgentName] = useState('default');
+  const [registeredAgentNames, setRegisteredAgentNames] = useState<string[]>([]);
   const [selectedToolsByAgent, setSelectedToolsByAgent] = useState<Record<string, string[]>>({});
   const [images, setImages] = useState<ImageData[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
@@ -68,12 +71,18 @@ export function AgentChatInput({
 
   const handleSend = () => {
     if ((input.trim() || images.length > 0) && !disabled && !isStreaming) {
-      const selectedTools = selectedToolsByAgent[activeAgentName] ?? [];
+      const agentNames = registeredAgentNames.length > 0
+        ? registeredAgentNames
+        : Array.from(new Set([chatAgentName, toolAgentName]));
+      const selectedTools = agentNames.reduce<Record<string, string[]>>((acc, agentName) => {
+        acc[agentName] = selectedToolsByAgent[agentName] ?? [];
+        return acc;
+      }, {});
       onSend(
         input,
-        selectedTools.length > 0 ? selectedTools : undefined,
+        selectedTools,
         images.length > 0 ? images : undefined,
-        activeAgentName
+        chatAgentName
       );
       setInput('');
       setImages([]);
@@ -91,8 +100,8 @@ export function AgentChatInput({
     onCancel?.();
   };
 
-  const handleAgentChange = useCallback((agentName: string) => {
-    setActiveAgentName(agentName);
+  const handleToolAgentChange = useCallback((agentName: string) => {
+    setToolAgentName(agentName);
   }, []);
 
   const handleToolSelectionChange = useCallback((
@@ -228,9 +237,9 @@ export function AgentChatInput({
       {/* Tool Selector */}
       <ToolSelector
         token={token}
-        agentName={activeAgentName}
+        agentName={toolAgentName}
         selectedToolsByAgent={selectedToolsByAgent}
-        onAgentChange={handleAgentChange}
+        onAgentChange={handleToolAgentChange}
         onSelectionChange={handleToolSelectionChange}
         disabled={disabled || isStreaming}
         onExpandChange={onToolsOpenChange}
@@ -323,6 +332,14 @@ export function AgentChatInput({
           </button>
         )}
       </div>
+
+      <AgentSelector
+        token={token}
+        value={chatAgentName}
+        onChange={setChatAgentName}
+        onAgentsLoaded={setRegisteredAgentNames}
+        disabled={disabled || isStreaming}
+      />
     </div>
   );
 }

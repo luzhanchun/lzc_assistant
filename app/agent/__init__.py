@@ -17,7 +17,7 @@ from app.agent.types import (
     ToolResultInfo,
     TraceStep,
 )
-from app.agent.agents import BaseAgent, DefaultAgent
+from app.agent.agents import BaseAgent, Diet_Cook_Agent, Travel_Planning_Agent
 from app.agent.registry import AgentHub
 from app.agent.tools.providers import (
     LocalToolProvider,
@@ -25,7 +25,12 @@ from app.agent.tools.providers import (
     SubagentToolProvider,
 )
 from app.agent.service import AgentService, agent_service
-from app.agent.prompts import DEFAULT_AGENT_SYSTEM_PROMPT
+from app.agent.prompts import (
+    DIET_COOKING_ASSISTANT_DESCRIPTION,
+    DIET_COOKING_ASSISTANT_SYSTEM_PROMPT,
+    TRAVEL_PLANNING_ASSISTANT_DESCRIPTION,
+    TRAVEL_PLANNING_ASSISTANT_SYSTEM_PROMPT,
+)
 from app.agent.context import (
     AgentContextBuilder,
     AgentContextCompressor,
@@ -63,8 +68,8 @@ def setup_agent_module():
 
     register_builtin_subagents()
 
-    # 注册默认 Agent
-    _register_default_agent()
+    # 注册所有Agent
+    _register_all_agent()
 
 
 async def setup_mcp_servers():
@@ -79,12 +84,17 @@ async def setup_mcp_servers():
     await register_mcp_servers()
 
 
-def _register_default_agent():
-    """注册默认 Agent。"""
+def _register_all_agent():
+    _register_diet_cook_agent()
+    _register_travel_planning_agent()
+
+
+def _register_diet_cook_agent():
+    """注册diet_cooking_assistant Agent。"""
     default_config = AgentConfig(
-        name="default",
-        description="通用助手 Agent，可以进行对话、使用工具完成任务。",
-        system_prompt=DEFAULT_AGENT_SYSTEM_PROMPT,
+        name="diet_cooking_assistant",
+        description=DIET_COOKING_ASSISTANT_DESCRIPTION,
+        system_prompt=DIET_COOKING_ASSISTANT_SYSTEM_PROMPT,
         tool_binding=AgentToolBinding(
             local=[
                 "calculator",
@@ -102,7 +112,29 @@ def _register_default_agent():
         max_iterations=10,
     )
 
-    AgentHub.register_agent(DefaultAgent, default_config)
+    AgentHub.register_agent(Diet_Cook_Agent, default_config)
+
+
+def _register_travel_planning_agent():
+    """注册travel_planning_assistant Agent。"""
+    default_config = AgentConfig(
+        name="travel_planning_assistant",
+        description=TRAVEL_PLANNING_ASSISTANT_DESCRIPTION,
+        system_prompt=TRAVEL_PLANNING_ASSISTANT_SYSTEM_PROMPT,
+        tool_binding=AgentToolBinding(
+            local=[
+                "calculator",
+                "datetime",
+                "web_search",
+                "image_generator",
+            ],
+            mcp=["amap"],
+            subagents=[],
+        ),
+        max_iterations=10,
+    )
+
+    AgentHub.register_agent(Travel_Planning_Agent, default_config)
 
 
 __all__ = [
@@ -120,7 +152,8 @@ __all__ = [
     "TraceStep",
     # Base classes
     "BaseAgent",
-    "DefaultAgent",
+    "Diet_Cook_Agent",
+    "Travel_Planning_Agent",
     "BaseTool",
     "MCPTool",
     "ToolExecutor",

@@ -86,7 +86,7 @@ export interface AgentChatRequest {
   session_id?: string;
   agent_name?: string;
   stream?: boolean;
-  selected_tools?: string[];  // User-selected tools
+  selected_tools?: Record<string, string[]>;  // User-selected tools by agent name
 }
 
 export interface ToolSchema {

@@ -305,7 +305,7 @@ export function useAgent(token?: string) {
 
   const sendMessage = useCallback(async (
     content: string,
-    selectedTools?: string[],
+    selectedTools?: Record<string, string[]>,
     images?: ImageData[],
     agentName = 'default'
   ) => {

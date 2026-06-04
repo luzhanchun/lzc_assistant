@@ -251,6 +251,9 @@ class AgentHub:
         None or empty, the agent gets all tools allowed by its binding. If
         selected_tools is non-empty, only selected tools within that binding are
         returned.
+        selected_tools is None：使用 Agent 默认绑定工具
+        selected_tools == []：也使用 Agent 默认绑定工具
+        selected_tools 非空：只使用它和 Agent 绑定工具的交集
         """
         try:
             config = cls.get_agent_config(agent_name)

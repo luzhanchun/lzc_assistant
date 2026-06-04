@@ -6,9 +6,11 @@ Agent 实现模块
 """
 
 from app.agent.agents.base import BaseAgent
-from app.agent.agents.default import DefaultAgent
+from app.agent.agents.diet_cook_agent import Diet_Cook_Agent
+from app.agent.agents.travel_planning_agent import Travel_Planning_Agent
 
 __all__ = [
     "BaseAgent",
-    "DefaultAgent",
+    "Diet_Cook_Agent",
+    "Travel_Planning_Agent",
 ]
