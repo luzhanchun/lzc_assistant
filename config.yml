@@ -230,10 +230,21 @@ image_storage:
 # =============================================================================
 
 mcp:
-  # Amap (高德地图) MCP server configuration
-  amap:
-    enabled: true
-  # amap_api_key: Loaded from .env (AMAP_API_KEY)
+  # Global MCP server configuration.
+  # Fill endpoint/auth_token directly in this file.
+  servers:
+    amap:
+      name: "amap"
+      endpoint: "https://mcp.amap.com/mcp?key=84746e0be094024ea4cef44de451aa77"
+      auth_header_name: null
+      auth_token: null
+      enabled: True
+    12306-mcp:
+      name: "12306-mcp"
+      endpoint: "https://mcp.api-inference.modelscope.net/93122625d9914c/mcp"
+      auth_header_name: "Authorization"
+      auth_token: "Bearer ms-c70808f9-c1cc-40e4-bd82-e966d6e4e523"
+      enabled: True
 
 # =============================================================================
 # 10. Data Source Configuration

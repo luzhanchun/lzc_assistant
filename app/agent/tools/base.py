@@ -130,9 +130,11 @@ class MCPTool(BaseTool):
         mcp_headers: Optional[dict[str, str]] = None,
         parameters: Optional[dict] = None,
     ):
+        #完整mcp工具名 f"mcp_{name}_{tool_name}"
         self.name = name
         self.description = description
         self.mcp_endpoint = mcp_endpoint
+        #工具名tool_name
         self.mcp_tool_name = mcp_tool_name
         self.mcp_headers = mcp_headers or {}
         if parameters:

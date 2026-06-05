@@ -128,7 +128,7 @@ def _register_travel_planning_agent():
                 "web_search",
                 "image_generator",
             ],
-            mcp=["amap"],
+            mcp=["amap","12306-mcp"],
             subagents=[],
         ),
         max_iterations=10,

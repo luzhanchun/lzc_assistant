@@ -3,13 +3,15 @@
 MCP Test Script
 
 Tests the MCP client and registry functionality.
-Run from project root: python -m tests.test_mcp
+Run from project root: conda run -n cook python -m tests.test_mcp
 """
 
 import asyncio
 import logging
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -20,6 +22,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def get_amap_server(settings):
+    """Return the configured amap MCP server if present."""
+    return settings.mcp.servers.get("amap")
+
+
+@pytest.mark.asyncio
 async def test_mcp_client():
     """Test MCP client directly."""
     from app.config import settings
@@ -29,21 +37,22 @@ async def test_mcp_client():
     print("Testing MCP Client")
     print("=" * 60)
 
-    # Check API key
-    amap_key = settings.mcp.amap_api_key
-    if not amap_key:
-        print("ERROR: AMAP_API_KEY not configured!")
-        print("Please set AMAP_API_KEY in your .env file")
+    amap_server = get_amap_server(settings)
+    if not amap_server:
+        print("ERROR: amap MCP server not configured in config.yml!")
+        return
+    if not amap_server.enabled:
+        print("ERROR: amap MCP server is disabled in config.yml!")
         return
 
-    print(f"AMAP API Key: {amap_key[:8]}...")
-
-    # Build endpoint - use StreamableHTTP (recommended by Amap)
-    endpoint = f"https://mcp.amap.com/mcp?key={amap_key}"
+    endpoint = amap_server.endpoint
     print(f"Endpoint: {endpoint}")
 
     # Create client
-    client = MCPClient(endpoint)
+    headers = None
+    if amap_server.auth_header_name and amap_server.auth_token:
+        headers = {amap_server.auth_header_name: amap_server.auth_token}
+    client = MCPClient(endpoint, headers=headers)
 
     try:
         # Initialize
@@ -81,27 +90,28 @@ async def test_mcp_client():
         print(f"ERROR: {e}")
 
 
+@pytest.mark.asyncio
 async def test_mcp_registry():
     """Test MCP provider and tool loading."""
     from app.config import settings
     from app.agent import setup_agent_module
     from app.agent.registry import AgentHub  # noqa: F401
-    from app.agent.tools.mcp.setup import register_amap_mcp  # noqa: F401
+    from app.agent.tools.mcp.setup import register_mcp_servers
 
     print("\n" + "=" * 60)
     print("Testing MCP Registry")
     print("=" * 60)
 
-    # Check if amap is enabled
-    print(f"Amap MCP enabled: {settings.mcp.amap.enabled}")
-    print(f"Amap API key configured: {bool(settings.mcp.amap_api_key)}")
+    amap_server = get_amap_server(settings)
+    print(f"Amap MCP configured: {bool(amap_server)}")
+    print(f"Amap MCP enabled: {amap_server.enabled if amap_server else False}")
 
     # Initialize module (providers + builtin tools + default agent)
     setup_agent_module()
 
-    # Register amap MCP
-    print("\n--- Registering Amap MCP ---")
-    await register_amap_mcp()
+    # Register MCP servers
+    print("\n--- Registering MCP servers ---")
+    await register_mcp_servers()
 
     # List registered servers
     print("\n--- Registered MCP servers ---")
@@ -130,9 +140,10 @@ async def test_mcp_registry():
         )
 
 
+@pytest.mark.asyncio
 async def test_tool_execution():
     """Test executing an MCP tool through the registry."""
-    from app.agent.tools.mcp.setup import register_amap_mcp  # noqa: F401
+    from app.agent.tools.mcp.setup import register_mcp_servers
     from app.agent import setup_agent_module
     from app.agent.registry import AgentHub  # noqa: F401
 
@@ -145,7 +156,7 @@ async def test_tool_execution():
     setup_agent_module()
 
     print("--- Registering MCP tools ---")
-    await register_amap_mcp()
+    await register_mcp_servers()
 
     # Try to find and execute the weather tool
     print("\n--- Looking for weather tool ---")

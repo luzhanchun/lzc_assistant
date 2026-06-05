@@ -24,7 +24,7 @@ Usage:
     print(DefaultRAGConfig.vector_store.collection_names)
 
     # Access MCP configuration
-    print(settings.mcp.amap_api_key)
+    print(settings.mcp.servers)
 
     # Access Image Generation configuration
     print(settings.image_generation.model)

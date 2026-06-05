@@ -3,7 +3,6 @@ MCP server management service.
 """
 
 import logging
-import re
 from hashlib import sha256
 from typing import List
 
@@ -12,11 +11,14 @@ from sqlalchemy import select
 from app.agent.database.models import AgentMCPServerModel
 from app.agent.registry import AgentHub
 from app.agent.tools.providers.mcp import MCPToolProvider
+from app.config.mcp_config import (
+    validate_mcp_auth,
+    validate_mcp_endpoint,
+    validate_mcp_name,
+)
 from app.database.session import get_session_context
 
 logger = logging.getLogger(__name__)
-
-NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{2,64}$")
 
 
 class MCPService:
@@ -183,26 +185,15 @@ class MCPService:
         return True
 
     def _validate_name(self, name: str) -> None:
-        if not NAME_PATTERN.match(name):
-            raise ValueError("MCP 名称需为 2-64 位，支持字母、数字、_、-")
+        validate_mcp_name(name)
 
     def _validate_endpoint(self, endpoint: str) -> None:
-        if not endpoint.startswith("http://") and not endpoint.startswith("https://"):
-            raise ValueError("Endpoint 需要以 http:// 或 https:// 开头")
-        if len(endpoint) > 512:
-            raise ValueError("Endpoint 过长")
+        validate_mcp_endpoint(endpoint)
 
     def _validate_auth(
         self, auth_header_name: str | None, auth_token: str | None
     ) -> None:
-        if not auth_header_name and not auth_token:
-            return
-        if not auth_header_name or not auth_token:
-            raise ValueError("Header 名称和 Token 需要同时填写")
-        if len(auth_header_name) > 128:
-            raise ValueError("Header 名称过长")
-        if "\n" in auth_header_name or "\r" in auth_header_name:
-            raise ValueError("Header 名称不合法")
+        validate_mcp_auth(auth_header_name, auth_token)
 
     def _build_headers(self, server: AgentMCPServerModel) -> dict[str, str] | None:
         if server.auth_header_name and server.auth_token:

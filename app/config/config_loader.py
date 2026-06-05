@@ -27,7 +27,7 @@ from app.config.rag_config import RAGConfig
 from app.config.web_search_config import WebSearchConfig
 from app.config.vision_config import VisionConfig, ImageGenerationConfig, ImageStorageConfig
 from app.config.evaluation_config import EvaluationConfig, AlertThresholds
-from app.config.mcp_config import MCPConfig, MCPServerConfig
+from app.config.mcp_config import MCPConfig
 
 
 # Load .env file into environment variables at module import
@@ -264,23 +264,12 @@ def load_evaluation_config() -> EvaluationConfig:
 
 def load_mcp_config() -> MCPConfig:
     """
-    Load MCP configuration from YAML + environment variables.
+    Load MCP configuration from YAML.
 
-    Environment variables:
-    - AMAP_API_KEY: Amap (高德地图) API key for MCP integration
+    MCP endpoints and auth tokens are read directly from config.yml.
     """
     config_data = _load_config_data()
     mcp_data = dict(config_data.get("mcp", {}) or {})
-
-    # Load AMAP API key from environment
-    amap_api_key = os.getenv("AMAP_API_KEY")
-    if amap_api_key:
-        mcp_data["amap_api_key"] = amap_api_key
-
-    # Parse amap server config if present
-    amap_data = mcp_data.pop("amap", None)
-    if amap_data:
-        mcp_data["amap"] = MCPServerConfig(**amap_data)
 
     return MCPConfig.model_validate(mcp_data)
 
