@@ -107,8 +107,13 @@ class AgentConfig:
     name: str
     description: str
     system_prompt: str
+    display_name: str | None = None
     tool_binding: AgentToolBinding = field(default_factory=AgentToolBinding)
     max_iterations: int = 32
+
+    def __post_init__(self) -> None:
+        if self.display_name is None:
+            self.display_name = self.name
 
 
 @dataclass

@@ -211,8 +211,8 @@ export function Sidebar({
                 {/* Conversation List */}
                 <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
                     <div className="flex items-center justify-between px-2 mb-2">
-                        <p className="text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider">
-                            {isAgentMode ? 'Recent Agent Sessions' : 'Recent Chats'}
+                        <p className="text-sm font-semibold tracking-wide text-gray-700 dark:text-gray-200">
+                            最近会话
                         </p>
                         {totalConversations > 0 && (
                             <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded-full">
@@ -303,33 +303,33 @@ function SidebarHeader({
     onToggleAgentMode?: () => void;
 }) {
     return (
-        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 flex items-center justify-center">
+        <div className="relative p-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="mb-4 flex flex-col items-center gap-3">
+                <div className="flex items-center justify-center gap-2.5">
+                    <div className="w-9 h-9 flex items-center justify-center rounded-2xl bg-white/80 dark:bg-gray-800/80 shadow-sm ring-1 ring-orange-100 dark:ring-orange-900/40">
                         <img
                             src="/logo.png"
-                            alt="CookHero Logo"
-                            className="w-full h-full object-contain"
+                            alt="LingMate Logo"
+                            className="w-7 h-7 object-contain"
                         />
                     </div>
-                    <span className="font-bold text-gray-800 dark:text-gray-100">CookHero</span>
-                    
-                    {onToggleAgentMode && (
-                        <button
-                            onClick={onToggleAgentMode}
-                            className={`ml-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors bg-orange-100 text-orange-600 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800 hover:bg-orange-200 dark:hover:bg-orange-800
-                            `}
-                            title={isAgentMode ? "Switch to standard chat" : "Switch to Agent mode"}
-                        >
-                            {isAgentMode ? <Bot className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" />}
-                            {isAgentMode ? 'Agent Mode' : '\u00A0Chat Mode'}
-                        </button>
-                    )}
+                    <span className="text-lg font-bold tracking-wide text-gray-900 dark:text-gray-50">
+                        灵伴<span className="ml-1 text-orange-500 dark:text-orange-400">LingMate</span>
+                    </span>
                 </div>
+                {onToggleAgentMode && (
+                    <button
+                        onClick={onToggleAgentMode}
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-orange-200 bg-white/85 px-3.5 py-1.5 text-xs font-semibold text-orange-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:shadow-md dark:border-orange-900/60 dark:bg-gray-900/70 dark:text-orange-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/40"
+                        title={isAgentMode ? "Switch to standard chat" : "Switch to Agent mode"}
+                    >
+                        {isAgentMode ? <Bot className="w-3.5 h-3.5" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                        {isAgentMode ? 'Agent Mode' : 'Chat Mode'}
+                    </button>
+                )}
                 <button
                     onClick={toggleSidebar}
-                    className="md:hidden p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    className="absolute right-3 top-3 md:hidden p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
                     aria-label="Close sidebar"
                 >
                     <PanelLeftClose className="w-5 h-5" />
@@ -341,7 +341,7 @@ function SidebarHeader({
                 `}
             >
                 <Plus className="w-4 h-4" />
-                {isAgentMode ? 'New Agent Session' : 'New Chat Session'}
+                新建会话
             </button>
         </div>
     );

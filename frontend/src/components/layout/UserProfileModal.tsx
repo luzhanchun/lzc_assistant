@@ -1008,7 +1008,7 @@ function McpTab({
                         className="mt-0.5 h-4 w-4 rounded border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500/40"
                       />
                       <span className="min-w-0">
-                        <span className="block font-medium truncate">{agent.name}</span>
+                        <span className="block font-medium truncate">{agent.display_name}</span>
                         <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">
                           {agent.description}
                         </span>

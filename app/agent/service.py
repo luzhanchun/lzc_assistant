@@ -189,7 +189,7 @@ class AgentService:
                 route_start_step = {
                     "error": None,
                     "action": "route_start",
-                    "content": "正在根据当前消息选择最合适的智能体",
+                    "content": "正在根据当前上下文选择最合适的智能体",
                     "iteration": 0,
                     "timestamp": datetime.now().isoformat(),
                     "tool_calls": None,

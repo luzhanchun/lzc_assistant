@@ -103,6 +103,7 @@ def _register_diet_cook_agent():
         name="diet_cooking_assistant",
         description=DIET_COOKING_ASSISTANT_DESCRIPTION,
         system_prompt=DIET_COOKING_ASSISTANT_SYSTEM_PROMPT,
+        display_name="饮食烹饪助手",
         tool_binding=AgentToolBinding(
             local=[
                 "calculator",
@@ -129,6 +130,7 @@ def _register_travel_planning_agent():
         name="travel_planning_assistant",
         description=TRAVEL_PLANNING_ASSISTANT_DESCRIPTION,
         system_prompt=TRAVEL_PLANNING_ASSISTANT_SYSTEM_PROMPT,
+        display_name="旅行规划助手",
         tool_binding=AgentToolBinding(
             local=[
                 "calculator",
@@ -151,6 +153,7 @@ def _register_fallback_triage_agent():
         name="fallback_triage_agent",
         description=FALLBACK_TRIAGE_AGENT_DESCRIPTION,
         system_prompt=FALLBACK_TRIAGE_AGENT_SYSTEM_PROMPT,
+        display_name="智能路由",
         tool_binding=AgentToolBinding(
             local=[],
             mcp=[],

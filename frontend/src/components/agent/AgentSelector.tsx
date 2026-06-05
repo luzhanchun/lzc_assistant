@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Bot, Loader2 } from 'lucide-react';
 import type { AgentInfo } from '../../types';
 import { getRegisteredAgents } from '../../services/api/agent';
-import { DEFAULT_AGENT_NAME, getAgentDisplayName } from '../../constants';
+import { DEFAULT_AGENT_NAME } from '../../constants';
 
 export interface AgentSelectorProps {
   token?: string;
@@ -87,7 +87,7 @@ export function AgentSelector({
         }`}
       >
         {agents.length === 0 ? (
-          <option value={value}>{isLoading ? 'Loading...' : getAgentDisplayName(value)}</option>
+          <option value={value}>{isLoading ? 'Loading...' : value}</option>
         ) : (
           agents.map(agent => (
             <option
@@ -99,7 +99,7 @@ export function AgentSelector({
                   : 'text-gray-700'
               }
             >
-              {getAgentDisplayName(agent.name)}
+              {agent.display_name}
             </option>
           ))
         )}

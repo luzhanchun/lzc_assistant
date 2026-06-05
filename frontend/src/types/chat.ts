@@ -112,6 +112,7 @@ export interface AgentToolGroups {
 
 export interface AgentToolManifestItem {
   name: string;
+  display_name: string;
   description: string;
   tools: AgentToolGroups;
   default_tools: string[];
@@ -123,6 +124,7 @@ export interface AgentToolManifestResponse {
 
 export interface AgentInfo {
   name: string;
+  display_name: string;
   description: string;
 }
 

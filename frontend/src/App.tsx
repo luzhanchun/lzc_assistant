@@ -123,7 +123,7 @@ function ChatView() {
               onCancel={stopGeneration}
               disabled={isLoading}
               isStreaming={isStreaming}
-              placeholder="Ask Agent to calculate, analyze, or plan..."
+              placeholder="有什么可以帮您的？灵伴小管家已就位~"
               externalValue={suggestionText}
               onExternalValueConsumed={handleSuggestionConsumed}
               token={token || undefined}
@@ -132,7 +132,7 @@ function ChatView() {
               agentSelectionResetKey={location.key}
             />
             <div className="text-center text-xs text-gray-400 mt-2">
-              CookHero Agent can make mistakes. Consider checking important information.
+              灵伴 Agent 已努力为你服务，但偶尔也会迷糊一下，重要信息请记得核查哦。
             </div>
           </div>
         </>

@@ -64,6 +64,7 @@ class AgentToolManifestItem(BaseModel):
     """Single agent entry in the tool manifest."""
 
     name: str
+    display_name: str
     description: str
     tools: AgentToolGroups
     default_tools: List[str]
@@ -79,6 +80,7 @@ class AgentInfo(BaseModel):
     """Registered agent info for selectors."""
 
     name: str
+    display_name: str
     description: str
 
 
@@ -303,6 +305,7 @@ async def get_agent_tool_manifest(
         agents=[
             AgentToolManifestItem(
                 name=agent["name"],
+                display_name=agent.get("display_name", agent["name"]),
                 description=agent["description"],
                 tools=AgentToolGroups(
                     tool=[
@@ -346,7 +349,11 @@ async def list_registered_agents(http_request: Request) -> AgentListResponse:
 
     return AgentListResponse(
         agents=[
-            AgentInfo(name=config.name, description=config.description)
+            AgentInfo(
+                name=config.name,
+                display_name=config.display_name or config.name,
+                description=config.description,
+            )
             for config in AgentHub.list_agent_configs()
         ]
     )

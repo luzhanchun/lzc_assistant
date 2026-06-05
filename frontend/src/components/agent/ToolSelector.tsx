@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import type { AgentToolManifestItem, ServerInfo, ToolSchema } from '../../types';
 import { getAgentToolManifest } from '../../services/api/agent';
-import { DEFAULT_AGENT_NAME, getAgentDisplayName } from '../../constants';
+import { DEFAULT_AGENT_NAME } from '../../constants';
 
 export interface ToolSelectorProps {
   token?: string;
@@ -352,7 +352,7 @@ export function ToolSelector({
           >
             {selectableManifest.map(agent => (
               <option key={agent.name} value={agent.name}>
-                {getAgentDisplayName(agent.name)}
+                {agent.display_name}
               </option>
             ))}
           </select>

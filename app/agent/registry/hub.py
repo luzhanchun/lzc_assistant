@@ -319,6 +319,7 @@ class AgentHub:
             agents.append(
                 {
                     "name": config.name,
+                    "display_name": config.display_name or config.name,
                     "description": config.description,
                     "tools": grouped,
                     "default_tools": bound_names,
