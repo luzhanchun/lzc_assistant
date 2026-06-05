@@ -8,6 +8,7 @@ import { SendHorizontal, Square, Paperclip, X } from 'lucide-react';
 import { ToolSelector } from './ToolSelector';
 import { AgentSelector } from './AgentSelector';
 import type { ImageData } from '../../types';
+import { DEFAULT_AGENT_NAME } from '../../constants';
 
 export interface AgentChatInputProps {
   onSend: (
@@ -24,6 +25,8 @@ export interface AgentChatInputProps {
   onExternalValueConsumed?: () => void;
   token?: string;
   onToolsOpenChange?: (isOpen: boolean) => void;
+  sessionId?: string;
+  agentSelectionResetKey?: string;
 }
 
 const MAX_IMAGES = 4;
@@ -40,11 +43,13 @@ export function AgentChatInput({
   onExternalValueConsumed,
   token,
   onToolsOpenChange,
+  sessionId,
+  agentSelectionResetKey,
 }: AgentChatInputProps) {
   const [input, setInput] = useState('');
   const [isComposing, setIsComposing] = useState(false);
-  const [chatAgentName, setChatAgentName] = useState('default');
-  const [toolAgentName, setToolAgentName] = useState('default');
+  const [chatAgentName, setChatAgentName] = useState(DEFAULT_AGENT_NAME);
+  const [toolAgentName, setToolAgentName] = useState(DEFAULT_AGENT_NAME);
   const [registeredAgentNames, setRegisteredAgentNames] = useState<string[]>([]);
   const [selectedToolsByAgent, setSelectedToolsByAgent] = useState<Record<string, string[]>>({});
   const [images, setImages] = useState<ImageData[]>([]);
@@ -61,6 +66,10 @@ export function AgentChatInput({
       textareaRef.current?.focus();
     }
   }, [externalValue, onExternalValueConsumed]);
+
+  useEffect(() => {
+    setChatAgentName(DEFAULT_AGENT_NAME);
+  }, [agentSelectionResetKey, sessionId]);
 
   // Cleanup preview URLs on unmount
   useEffect(() => {

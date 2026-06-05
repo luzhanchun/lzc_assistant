@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { AgentToolManifestItem, ServerInfo, ToolSchema } from '../../types';
 import { getAgentToolManifest } from '../../services/api/agent';
+import { DEFAULT_AGENT_NAME, getAgentDisplayName } from '../../constants';
 
 export interface ToolSelectorProps {
   token?: string;
@@ -225,9 +226,14 @@ export function ToolSelector({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectableManifest = useMemo(
+    () => manifest.filter(agent => agent.name !== DEFAULT_AGENT_NAME),
+    [manifest]
+  );
+
   const activeAgent = useMemo(
-    () => manifest.find(agent => agent.name === agentName) ?? manifest[0],
-    [agentName, manifest]
+    () => selectableManifest.find(agent => agent.name === agentName) ?? selectableManifest[0],
+    [agentName, selectableManifest]
   );
   const selectedTools = useMemo(
     () => activeAgent ? selectedToolsByAgent[activeAgent.name] ?? [] : [],
@@ -255,14 +261,14 @@ export function ToolSelector({
   }, [loadManifest]);
 
   useEffect(() => {
-    if (manifest.length === 0) return;
+    if (selectableManifest.length === 0) return;
 
-    const nextAgent = manifest.find(agent => agent.name === agentName)
-      ?? manifest[0];
+    const nextAgent = selectableManifest.find(agent => agent.name === agentName)
+      ?? selectableManifest[0];
     if (nextAgent && nextAgent.name !== agentName) {
       onAgentChange(nextAgent.name);
     }
-  }, [agentName, manifest, onAgentChange]);
+  }, [agentName, onAgentChange, selectableManifest]);
 
   useEffect(() => {
     onExpandChange?.(activeCategory !== null);
@@ -337,16 +343,16 @@ export function ToolSelector({
           <Loader2 className="w-4 h-4 animate-spin text-gray-400 flex-shrink-0" />
         )}
 
-        {manifest.length > 0 && (
+        {selectableManifest.length > 0 && (
           <select
             value={activeAgent?.name ?? agentName}
             onChange={(event) => onAgentChange(event.target.value)}
             disabled={disabled || isLoading}
             className="px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
           >
-            {manifest.map(agent => (
+            {selectableManifest.map(agent => (
               <option key={agent.name} value={agent.name}>
-                {agent.name}
+                {getAgentDisplayName(agent.name)}
               </option>
             ))}
           </select>

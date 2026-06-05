@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator, HttpUrl
 
 from app.config import settings
-from app.agent.service import agent_service
+from app.agent.service import ROUTER_ENTRY_AGENT_NAME, agent_service
 from app.agent.registry import AgentHub
 from app.security.dependencies import check_message_security
 from app.services.agent_mcp_binding_service import agent_mcp_binding_service
@@ -167,7 +167,7 @@ class AgentChatRequest(BaseModel):
     message: str = Field(..., max_length=MAX_MESSAGE_LENGTH)
     images: Optional[List[ImageData]] = Field(default=None, max_length=MAX_IMAGES)
     session_id: Optional[str] = None
-    agent_name: str = Field(default="default", max_length=100)
+    agent_name: str = Field(default=ROUTER_ENTRY_AGENT_NAME, max_length=100)
     stream: bool = True
     selected_tools: Optional[Dict[str, List[str]]] = None  # User-selected tools by agent
 
@@ -519,13 +519,14 @@ async def agent_chat(request: AgentChatRequest, http_request: Request):
     if not user_id:
         raise HTTPException(status_code=401, detail="需要登录")
 
-    try:
-        AgentHub.get_agent_config(request.agent_name)
-    except KeyError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Agent not found: {request.agent_name}",
-        ) from exc
+    if request.agent_name:
+        try:
+            AgentHub.get_agent_config(request.agent_name)
+        except KeyError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Agent not found: {request.agent_name}",
+            ) from exc
 
     # Use queue-based approach to ensure backend continues even if client disconnects
     queue: asyncio.Queue[str | None] = asyncio.Queue()

@@ -37,3 +37,13 @@ export const DATE_CATEGORY_LABELS = {
 // App Info
 export const APP_NAME = 'CookHero';
 export const APP_EMOJI = '🍳';
+
+// Agent UI
+export const DEFAULT_AGENT_NAME = 'fallback_triage_agent';
+
+export const AGENT_DISPLAY_NAMES: Record<string, string> = {
+  fallback_triage_agent: '智能路由',
+};
+
+export const getAgentDisplayName = (agentName: string) =>
+  AGENT_DISPLAY_NAMES[agentName] ?? agentName;

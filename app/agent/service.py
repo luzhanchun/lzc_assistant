@@ -10,17 +10,20 @@ import logging
 import time
 import uuid
 from dataclasses import asdict
+from datetime import datetime
 from typing import Any, AsyncGenerator, Optional
 
 # 默认截断阈值（字符数）
 DEFAULT_TRUNCATE_THRESHOLD = 500
 TRUNCATE_SUFFIX = "...[truncated]"
+ROUTER_ENTRY_AGENT_NAME = "fallback_triage_agent"
 
 from app.agent.types import AgentChunk, AgentChunkType, AgentContext
 from app.agent.agents import BaseAgent
 from app.agent.context import AgentContextBuilder, AgentContextCompressor
 from app.agent.database.repository import AgentRepository, agent_repository
 from app.agent.registry import AgentHub
+from app.agent.router import AgentRouteDecision, Agent_router
 from app.agent.prompts import VISION_ANALYSIS_PROMPT_TEMPLATE
 
 logger = logging.getLogger(__name__)
@@ -91,13 +94,13 @@ def _sanitize_value(value: Any) -> Any:
 
 
 def _build_fallback_agent(name: str) -> BaseAgent:
-    from app.agent.agents import Diet_Cook_Agent
+    from app.agent.agents import FallbackTriageAgent
     from app.agent.types import AgentConfig
 
-    return Diet_Cook_Agent(
+    return FallbackTriageAgent(
         AgentConfig(
             name=name,
-            description="Default assistant",
+            description="Fallback triage assistant",
             system_prompt="You are a helpful assistant.",
         )
     )
@@ -127,13 +130,14 @@ class AgentService:
         self.repository = repository or agent_repository
         self.context_builder = AgentContextBuilder(repository=self.repository)
         self.context_compressor = AgentContextCompressor()
+        self.agent_router = Agent_router(repository=self.repository)
 
     async def chat(
         self,
         session_id: Optional[str],
         user_id: str,
         message: str,
-        agent_name: str = "default",
+        agent_name: str = ROUTER_ENTRY_AGENT_NAME,
         streaming: bool = False,
         selected_tools: Optional[dict[str, list[str]]] = None,
         images: Optional[list[dict]] = None,
@@ -145,7 +149,7 @@ class AgentService:
             session_id: Session ID（可选，为空则创建新 Session）
             user_id: 用户 ID
             message: 用户消息
-            agent_name: Agent 名称（用于选择 Agent，不存储在 Session 中）
+            agent_name: Agent 名称（用于选择 Agent，不存储在 Session 中）。为空或 fallback_triage_agent 时启用智能路由。
             streaming: 是否启用流式输出
             selected_tools: 按 Agent 名称分组的用户选择工具列表
             images: 用户上传的图片列表 [{data, mime_type}]
@@ -177,7 +181,40 @@ class AgentService:
                 },
             )
 
-            # 3. 组装上下文
+            trace_steps = []
+
+            # 3. 仅默认入口启用智能路由；显式指定其他 Agent 时尊重指定
+            routing_enabled = not agent_name or agent_name == ROUTER_ENTRY_AGENT_NAME
+            if routing_enabled:
+                route_start_step = {
+                    "error": None,
+                    "action": "route_start",
+                    "content": "正在根据当前消息选择最合适的智能体",
+                    "iteration": 0,
+                    "timestamp": datetime.now().isoformat(),
+                    "tool_calls": None,
+                    "source": "agent",
+                }
+                trace_steps.append(route_start_step)
+                yield self._format_event("trace", route_start_step)
+
+            route_decision = await self._route_if_needed(session, message, agent_name)
+            agent_name = route_decision.agent_name
+
+            if routing_enabled:
+                route_decision_step = {
+                    "error": None,
+                    "action": "route_decision",
+                    "content": asdict(route_decision),
+                    "iteration": 0,
+                    "timestamp": datetime.now().isoformat(),
+                    "tool_calls": None,
+                    "source": "agent",
+                }
+                trace_steps.append(route_decision_step)
+                yield self._format_event("trace", route_decision_step)
+
+            # 4. 组装上下文
             agent_selected_tools = (
                 selected_tools.get(agent_name) if selected_tools is not None else None
             )
@@ -192,7 +229,7 @@ class AgentService:
 
             tool_events = []
 
-            # 4. If images present, run vision analysis and emit event
+            # 5. If images present, run vision analysis and emit event
             if context.images:
                 vision_result = await self._analyze_images(context)
                 if vision_result:
@@ -221,18 +258,17 @@ class AgentService:
                     )
                     yield self._format_event("vision", vision_result)
 
-            # 5. 获取 Agent
+            # 6. 获取 Agent
             agent = self._get_agent_or_fallback(agent_name)
 
-            # 6. 创建 LLM invoker
+            # 7. 创建 LLM invoker
             invoker = provider.create_invoker(
                 llm_type="fast",
                 streaming=streaming,
             )
 
-            # 7. 执行 Agent
+            # 8. 执行 Agent
             response_content = ""
-            trace_steps = []
 
             if streaming:
                 agent_generator = agent.run_streaming(invoker, context)
@@ -381,7 +417,7 @@ class AgentService:
                         },
                     )
 
-            # 8. 保存消息（所有执行过程都存储在 trace 中）
+            # 9. 保存消息（所有执行过程都存储在 trace 中）
             # Calculate final timing if not already done
             if answer_end_time is None:
                 answer_end_time = time.time()
@@ -474,7 +510,7 @@ class AgentService:
                 answer_duration_ms=final_answer_ms,
             )
 
-            # 8. 后台压缩上下文
+            # 10. 后台压缩上下文
             asyncio.create_task(
                 self.context_compressor.maybe_compress(
                     actual_session_id,
@@ -492,7 +528,22 @@ class AgentService:
             return AgentHub.get_agent(agent_name)
         except KeyError:
             logger.warning(f"Agent {agent_name} not found, using fallback")
-            return _build_fallback_agent("default")
+            return _build_fallback_agent(ROUTER_ENTRY_AGENT_NAME)
+
+    async def _route_if_needed(
+        self,
+        session: Any,
+        message: str,
+        agent_name: Optional[str],
+    ) -> AgentRouteDecision:
+        if not agent_name or agent_name == ROUTER_ENTRY_AGENT_NAME:
+            return await self.agent_router.router(session, message)
+
+        return AgentRouteDecision(
+            agent_name=agent_name,
+            confidence=1.0,
+            reason="用户显式指定智能体，跳过智能路由",
+        )
 
     async def _analyze_images(self, context: AgentContext) -> Optional[dict]:
         """

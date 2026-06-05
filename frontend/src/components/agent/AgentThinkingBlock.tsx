@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useId, useState } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp, Loader2, CheckCircle2, Cpu, AlertCircle, Clock, Play, ArrowRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Loader2, CheckCircle2, Cpu, AlertCircle, Clock, Play, ArrowRight, GitBranch } from 'lucide-react';
 import { MarkdownRenderer } from '../chat/MarkdownRenderer';
 
 export interface TraceStep {
@@ -19,6 +19,12 @@ export interface TraceStep {
   }[];
   source?: 'agent' | 'subagent';
   subagent_name?: string;
+}
+
+interface RouteDecisionContent {
+  agent_name?: string;
+  confidence?: number;
+  reason?: string;
 }
 
 export interface AgentThinkingBlockProps {
@@ -179,6 +185,22 @@ function TraceStepItem({ step }: { step: TraceStep }) {
         label: 'Tool Call',
       };
     }
+    if (step.action === 'route_start') {
+      return {
+        icon: <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />,
+        bgColor: 'bg-indigo-50 dark:bg-indigo-900/30',
+        borderColor: 'border-indigo-200 dark:border-indigo-800',
+        label: '智能路由',
+      };
+    }
+    if (step.action === 'route_decision') {
+      return {
+        icon: <GitBranch className="w-4 h-4 text-indigo-500" />,
+        bgColor: 'bg-indigo-50 dark:bg-indigo-900/30',
+        borderColor: 'border-indigo-200 dark:border-indigo-800',
+        label: '路由结果',
+      };
+    }
     if (step.action === 'tool_result') {
       return {
         icon: <ArrowRight className="w-4 h-4 text-blue-500" />,
@@ -227,6 +249,13 @@ function TraceStepItem({ step }: { step: TraceStep }) {
     return String(content);
   };
 
+  const isRouteDecision = step.action === 'route_decision';
+  const routeDecision = (
+    isRouteDecision && step.content && typeof step.content === 'object'
+      ? step.content as RouteDecisionContent
+      : null
+  );
+
   return (
     <div className={`rounded-lg border ${style.borderColor} ${style.bgColor} p-2.5`}>
       {/* Header */}
@@ -264,8 +293,30 @@ function TraceStepItem({ step }: { step: TraceStep }) {
         </div>
       )}
 
+      {/* Route decision content */}
+      {routeDecision && (
+        <div className="mt-2 rounded border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-800 p-2 text-xs text-gray-600 dark:text-gray-300 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>已选择</span>
+            <span className="font-mono text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-1.5 py-0.5 rounded">
+              {routeDecision.agent_name || 'unknown'}
+            </span>
+            {typeof routeDecision.confidence === 'number' && (
+              <span className="text-gray-500 dark:text-gray-400">
+                置信度 {(routeDecision.confidence * 100).toFixed(0)}%
+              </span>
+            )}
+          </div>
+          {routeDecision.reason && (
+            <div className="text-gray-500 dark:text-gray-400">
+              {routeDecision.reason}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Other content - Don't show for final_answer/finish as it will be displayed as main message */}
-      {hasContent && !isToolResult && step.action !== 'final_answer' && step.action !== 'finish' && (
+      {hasContent && !isToolResult && !isRouteDecision && step.action !== 'final_answer' && step.action !== 'finish' && (
         <div className="mt-2 text-gray-600 dark:text-gray-400 text-sm white-space: normal">
           {isSubagentOutput ? (
             <MarkdownRenderer

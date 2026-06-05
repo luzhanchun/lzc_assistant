@@ -128,6 +128,8 @@ function ChatView() {
               onExternalValueConsumed={handleSuggestionConsumed}
               token={token || undefined}
               onToolsOpenChange={setIsToolSelectorOpen}
+              sessionId={agentSessionId}
+              agentSelectionResetKey={location.key}
             />
             <div className="text-center text-xs text-gray-400 mt-2">
               CookHero Agent can make mistakes. Consider checking important information.

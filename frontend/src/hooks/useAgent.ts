@@ -23,7 +23,7 @@ import {
   updateAgentSessionTitle
 } from '../services/api/agent';
 import { generateId, waitForNextTick } from '../utils';
-import { STORAGE_KEYS } from '../constants';
+import { DEFAULT_AGENT_NAME, STORAGE_KEYS } from '../constants';
 
 // Type for streaming state cache
 interface StreamingState {
@@ -307,7 +307,7 @@ export function useAgent(token?: string) {
     content: string,
     selectedTools?: Record<string, string[]>,
     images?: ImageData[],
-    agentName = 'default'
+    agentName = DEFAULT_AGENT_NAME
   ) => {
     if (!content.trim() && (!images || images.length === 0)) return;
     if (isLoading) return;

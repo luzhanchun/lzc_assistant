@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Bot, Loader2 } from 'lucide-react';
 import type { AgentInfo } from '../../types';
 import { getRegisteredAgents } from '../../services/api/agent';
+import { DEFAULT_AGENT_NAME, getAgentDisplayName } from '../../constants';
 
 export interface AgentSelectorProps {
   token?: string;
@@ -55,12 +56,13 @@ export function AgentSelector({
 
     const hasSelectedAgent = agents.some(agent => agent.name === value);
     if (!hasSelectedAgent) {
-      const defaultAgent = agents.find(agent => agent.name === 'default');
+      const defaultAgent = agents.find(agent => agent.name === DEFAULT_AGENT_NAME);
       onChange((defaultAgent ?? agents[0]).name);
     }
   }, [agents, value, onChange]);
 
   const selectedAgent = agents.find(agent => agent.name === value);
+  const isFallbackTriageSelected = (selectedAgent?.name ?? value) === DEFAULT_AGENT_NAME;
 
   return (
     <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-end">
@@ -78,14 +80,26 @@ export function AgentSelector({
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled || isLoading || agents.length === 0}
         title={selectedAgent?.description}
-        className="min-w-40 max-w-full px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 disabled:opacity-60 disabled:cursor-not-allowed"
+        className={`min-w-40 max-w-full px-2 py-1.5 text-sm text-center rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed ${
+          isFallbackTriageSelected
+            ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+            : 'text-gray-700 dark:text-gray-200'
+        }`}
       >
         {agents.length === 0 ? (
-          <option value={value}>{isLoading ? 'Loading...' : value}</option>
+          <option value={value}>{isLoading ? 'Loading...' : getAgentDisplayName(value)}</option>
         ) : (
           agents.map(agent => (
-            <option key={agent.name} value={agent.name}>
-              {agent.name}
+            <option
+              key={agent.name}
+              value={agent.name}
+              className={
+                agent.name === DEFAULT_AGENT_NAME
+                  ? 'text-emerald-600'
+                  : 'text-gray-700'
+              }
+            >
+              {getAgentDisplayName(agent.name)}
             </option>
           ))
         )}

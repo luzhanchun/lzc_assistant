@@ -17,7 +17,12 @@ from app.agent.types import (
     ToolResultInfo,
     TraceStep,
 )
-from app.agent.agents import BaseAgent, Diet_Cook_Agent, Travel_Planning_Agent
+from app.agent.agents import (
+    BaseAgent,
+    Diet_Cook_Agent,
+    FallbackTriageAgent,
+    Travel_Planning_Agent,
+)
 from app.agent.registry import AgentHub
 from app.agent.tools.providers import (
     LocalToolProvider,
@@ -28,6 +33,8 @@ from app.agent.service import AgentService, agent_service
 from app.agent.prompts import (
     DIET_COOKING_ASSISTANT_DESCRIPTION,
     DIET_COOKING_ASSISTANT_SYSTEM_PROMPT,
+    FALLBACK_TRIAGE_AGENT_DESCRIPTION,
+    FALLBACK_TRIAGE_AGENT_SYSTEM_PROMPT,
     TRAVEL_PLANNING_ASSISTANT_DESCRIPTION,
     TRAVEL_PLANNING_ASSISTANT_SYSTEM_PROMPT,
 )
@@ -87,6 +94,7 @@ async def setup_mcp_servers():
 def _register_all_agent():
     _register_diet_cook_agent()
     _register_travel_planning_agent()
+    _register_fallback_triage_agent()
 
 
 def _register_diet_cook_agent():
@@ -137,6 +145,23 @@ def _register_travel_planning_agent():
     AgentHub.register_agent(Travel_Planning_Agent, default_config)
 
 
+def _register_fallback_triage_agent():
+    """注册fallback_triage_agent Agent。"""
+    default_config = AgentConfig(
+        name="fallback_triage_agent",
+        description=FALLBACK_TRIAGE_AGENT_DESCRIPTION,
+        system_prompt=FALLBACK_TRIAGE_AGENT_SYSTEM_PROMPT,
+        tool_binding=AgentToolBinding(
+            local=[],
+            mcp=[],
+            subagents=[],
+        ),
+        max_iterations=10,
+    )
+
+    AgentHub.register_agent(FallbackTriageAgent, default_config)
+
+
 __all__ = [
     # Types
     "AgentChunk",
@@ -153,6 +178,7 @@ __all__ = [
     # Base classes
     "BaseAgent",
     "Diet_Cook_Agent",
+    "FallbackTriageAgent",
     "Travel_Planning_Agent",
     "BaseTool",
     "MCPTool",
