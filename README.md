@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="./docs/image.png" alt="CookHero Logo" width="512" />
+<img src="./docs/image.png" alt="LZC Assistant Logo" width="512" />
 
-**智能烹饪与饮食管理助手 · 你的个性化饮食英雄**
+**多 Agent 个人通用助手 · 可扩展的智能体工作台**
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.122-009688.svg)](https://fastapi.tiangolo.com/)
@@ -10,9 +10,6 @@
 [![Milvus](https://img.shields.io/badge/Milvus-2.6-orange.svg)](https://milvus.io/)
 [![NeMo Guardrails](https://img.shields.io/badge/NeMo%20Guardrails-0.12-76B900.svg)](https://github.com/NVIDIA/NeMo-Guardrails)
 [![RAGAS](https://img.shields.io/badge/RAGAS-0.2-purple.svg)](https://docs.ragas.io/)
-[![License](https://img.shields.io/badge/License-APACHE%202.0-blue.svg)](LICENSE)
-
-简体中文 | [English](./docs/README_EN.md)
 
 ---
 
@@ -22,128 +19,92 @@
 <p align="center">
   <img src="./docs/agent.jpg" width="48%">
   <img src="./docs/demo_2x.gif" width="48%"/>
-  <img src="./docs/diet.jpg" width="48%">
-  <img src="./docs/statistics.jpg" width="48%">
 </p>
 </div>
 
----
-
-## 📖 项目简介
-
-**CookHero**（烹饪英雄）是一个融合 LLM、RAG、Agent、多模态与营养数据分析的个性化饮食管理平台。它不仅是菜谱库，更是一位能陪你做计划、做记录、看数据、给建议的“饮食管理英雄助手”，帮助你把烹饪与健康目标变成可执行的日常。
-
-- 🔍 **智能问答**：解答烹饪技巧、食材搭配、营养知识等问题
-- 🍽️ **个性化推荐**：根据口味、目标和限制提供更贴合的菜品选择
-- 🗓️ **饮食计划**：按周规划三餐与加餐，形成可执行的饮食节奏
-- 🧾 **AI 记录**：文字/图片一键记录，自动估算热量与宏量营养
-- 📊 **营养分析**：每日/每周统计与计划偏差分析，持续优化习惯
-- 🧠 **深度理解**：多轮对话理解用户意图，输出精准行动建议
-- 🌐 **实时搜索**：结合 Web 搜索获取最新烹饪资讯和趋势
-
-CookHero 面向厨房新手、健身/减脂/控糖人群、健康饮食倡导者、过敏体质用户及家庭场景，致力于让烹饪更专业、更智能、更可持续。
-
-> 内部自带的食谱来源于[Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook)，感谢该项目的贡献者！
 
 ---
 
-## ⚡ 技术亮点
+## 项目简介
 
-- **LLM + RAG 混合检索**：向量 + BM25 + Reranker 组合，配合多级缓存提速
-- **Agent ToolHub**：ReAct 推理 + 工具调用，支持 MCP 动态扩展
-- **Subagent 专家体系**：内置 + 用户自定义子代理，按需启用与编排
-- **多模态解析**：图片识别与饮食记录联动，覆盖烹饪与记录场景
-- **评估与可观测性**：RAGAS 质量评估 + LLM 使用统计 + 可视化看板
-- **安全与合规**：提示词注入防护、速率限制、结构化审计日志
+**LingMate** 是一个面向个人日常场景的多 Agent 通用助手平台。系统以 Agent Router 为入口，根据用户意图自动分发到合适的专业智能体，并通过本地工具、MCP 服务、知识库检索、多模态理解和长期上下文，为用户提供可执行的个人助理能力。
+
+项目当前内置出行规划、通用问答、知识库检索、图片生成、网页搜索、计算、日期时间等能力；原有的饮食计划、记录和分析模块已作为个人助手中的一个可选垂直能力保留，不再作为项目主定位。
+
+- **智能路由**：根据当前消息和上下文自动选择合适的 Agent
+- **专业智能体**：支持出行规划、生活管理、知识查询等垂直助手扩展
+- **工具调用**：统一接入本地工具、MCP 工具和 Subagent 工具
+- **个人知识库**：支持私人文档上传、索引、检索和引用来源
+- **多模态交互**：支持图片理解与图片生成，覆盖更自然的表达方式
+- **长期上下文**：会话摘要压缩、用户画像和长期指令辅助个性化响应
+- **可观测性**：记录 LLM 使用量、工具调用轨迹、性能指标和 RAG 评估结果
+- **安全防护**：提示词注入检测、速率限制、审计日志和敏感信息脱敏
+
+---
+
+## 技术亮点
+
+- **多 Agent 架构**：Agent Router + 专业 Agent + Subagent，可按任务动态编排
+- **统一 ToolHub**：本地工具、MCP 服务和 Subagent 均以工具形式统一注册和调用
+- **RAG 混合检索**：向量检索、BM25、Reranker 与多级缓存组合
+- **MCP 动态扩展**：支持用户配置 MCP Server，并绑定到指定 Agent
+- **多模态能力**：图片输入解析、AI 图片生成和外部图床持久化
+- **可观测与评估**：RAGAS 质量评估、LLM Token 统计、工具执行追踪
 - **现代化全栈**：FastAPI + React + PostgreSQL + Milvus + Redis + MinIO
 
-## ✨ 核心功能
+## 核心功能
 
-### 1. Agent 智能饮食管家
-- **ReAct 模式**：实现推理 + 行动循环，支持自主决策和工具调用
-- **多模态支持**：支持上传图片，图片自动上传到 imgbb 持久化存储
-- **用户画像集成**：自动读取用户画像和长期指令，提供个性化饮食管理服务
-- **Subagent 子代理**：内置/自定义专家可作为工具被调用，独立 system prompt 与工具集
-- **Subagent 管理**：个人中心创建/启用/禁用，工具选择器支持 Agents 面板
-- **内置工具**：
-  - 饮食工具：计划管理、饮食记录、营养分析
-  - 知识库检索：调用内置 RAG 检索并返回可引用来源
-  - Web 搜索：集成 Tavily 搜索引擎，联网查询实时信息
-  - AI 图片生成：基于 DALL-E 3 等模型生成图片，自动上传到 imgbb 持久化
-  - 计算器：数学计算
-  - 日期时间：获取当前时间、时区转换
-- **MCP 协议支持**：支持用户自定义 MCP 服务器并配置鉴权头
-- **可扩展架构**：通过 AgentHub 统一管理 Agent、Tool 和 Provider
-- **上下文压缩**：自动压缩长对话历史，减少 Token 消耗
-- **实时反馈**：SSE 事件流，实时展示工具调用过程和结果
-- **执行追踪**：主 Agent 与 Subagent 轨迹分层展示，支持调试分析
-- **工具选择**：前端可动态选择工具与子代理
+### 1. 多 Agent 对话工作台
 
-### 2. 饮食计划与记录
-- 周视图管理早餐/午餐/晚餐/加餐，形成可执行的饮食计划
-- 计划餐次自动汇总热量与宏量营养
-- 一键标记已吃，计划自动转化为真实记录
-- AI 解析文字/图片饮食描述，自动估算营养信息
-- 支持餐次更新、复制与备注管理
+- 默认进入智能路由，由系统选择最合适的专业 Agent
+- 支持显式选择 Agent，并在前端动态选择可用工具
+- SSE 流式响应，实时展示思考、路由、工具调用和最终回答
+- 会话持久化、标题更新、历史消息加载和删除
+- 长对话自动压缩，降低 Token 消耗并保留关键上下文
 
-### 3. 营养分析与目标追踪
-- 每日/每周营养总览（热量、蛋白、脂肪、碳水）
-- 计划 vs 实际偏差分析，识别饮食习惯波动
-- 目标管理：卡路里/蛋白/脂肪/碳水目标
-- 数据来源标记：手动、AI 文本、AI 图片
+### 2. 内置专业 Agent
 
-### 4. 智能对话式菜谱查询
-- 自然语言理解用户需求（如"我想做一道低脂高蛋白的晚餐"）
-- 支持多轮对话，记录上下文历史
-- 自动识别用户意图（查询、推荐、闲聊等）
-- 流式响应，支持实时显示生成内容
+- **智能路由 Agent**：负责兜底、澄清、分诊和通用问题处理
+- **旅行规划助手**：处理地图查询、路线规划、跨城交通、行程安排、行李清单等出行任务
+- **生活管理类垂直能力**：保留饮食计划、记录、营养统计等模块，可作为个人助手的可选工具域使用
+- **自定义 Subagent**：用户可创建自己的专家助手，配置独立提示词和工具集
 
-### 5. 个性化知识库
-- 用户可上传私人食谱，系统自动分析并索引
-- 全局食谱库（来自 [HowToCook](https://github.com/Anduin2017/HowToCook)）与个人食谱融合查询
-- 支持 Markdown 格式食谱的智能解析
+### 3. 工具与 MCP 扩展
 
-### 6. 混合检索与重排序
-- **向量检索**：语义相似度匹配（基于 Milvus）
-- **BM25 检索**：关键词精确匹配
-- **元数据过滤**：根据烹饪时间、难度、营养成分等筛选
-- **智能重排序**：使用 Reranker 模型（如 Qwen3-Reranker）对结果二次精排
-- **多级缓存**：Redis + Milvus 双层缓存，提升响应速度
+- **通用工具**：计算器、日期时间、Web 搜索、知识库检索、AI 图片生成
+- **地图与出行工具**：通过 MCP 接入高德地图、12306 等外部服务
+- **个人管理工具**：可选接入饮食计划、记录、分析等个人数据工具
+- **用户级 MCP 配置**：支持新增、启用、禁用、绑定和鉴权头配置
+- **工具选择器**：前端按 Agent 展示本地工具、MCP 工具和 Subagent 工具
 
-### 7. 多模态支持
-- **图片识别**：支持上传食材/菜品/饮食图片进行智能识别
-- **意图理解**：结合图片和文字理解用户完整意图
-- **多种场景**：菜品识别、食材识别、烹饪指导、饮食记录、食谱查询
-- **灵活接入**：支持 OpenAI 兼容的视觉模型 API
-- **图片限制**：最多 4 张、单张 10MB（Agent/饮食记录场景）
+### 4. 个人知识库与 RAG
 
-### 8. RAG 评估系统
-- **质量监控**：基于 RAGAS 框架的自动化评估
-- **核心指标**：忠实度（Faithfulness）、答案相关性（Answer Relevancy）
-- **异步评估**：后台异步执行，不影响响应速度
-- **趋势分析**：支持评估趋势查看和质量告警
-- **数据持久化**：评估结果存储于 PostgreSQL
+- 上传个人文档并自动解析、切分、嵌入和索引
+- 支持全局知识库与个人知识库融合检索
+- 检索结果可返回来源信息，方便追溯和核查
+- 支持向量检索、关键词检索、元数据过滤和重排序
+- Redis + Milvus 多级缓存提升检索与生成性能
 
-### 9. LLM 使用统计
-- **实时监控**：跟踪每个请求的 Token 使用量
-- **性能指标**：记录响应时间、思考时间、生成时间
-- **统计分析**：按用户、会话、模块统计使用情况
-- **工具追踪**：记录 Agent 工具调用名称
-- **可视化展示**：前端提供 LLM 统计数据页面
+### 5. 多模态与图片能力
 
-### 10. 安全防护体系
-- **多层防护**：输入验证 → 模式检测 → LLM 深度检测
-- **提示词注入防护**：基于规则和 AI 的双重检测机制
-- **速率限制**：Redis 滑动窗口算法，按端点类型区分限制
-- **账户安全**：登录失败锁定、JWT 过期策略、安全响应头
-- **敏感数据保护**：日志脱敏、API Key 过滤
-- **安全审计**：结构化 JSON 审计日志，支持 SIEM 系统对接
+- 支持上传图片参与 Agent 对话
+- 支持 OpenAI 兼容视觉模型进行图片理解
+- 支持 DALL-E 3 等图片生成模型
+- 生成图片可自动上传到 imgbb 进行持久化存储
 
-> 📖 详细安全架构请参阅 [安全策略文档](docs/SECURITY.md)
+### 6. 评估、统计与安全
+
+- RAGAS 自动化评估答案忠实度和相关性
+- LLM 使用统计覆盖 Token、响应时间、工具名称和模块来源
+- 前端提供评估监控与模型统计页面
+- 速率限制、登录失败锁定、JWT 过期策略和安全响应头
+- 结构化审计日志、API Key 过滤和日志脱敏
+
+详细安全架构请参阅 [安全策略文档](docs/SECURITY.md)。
 
 ---
 
-## 🚀 快速开始
+## 快速开始
 
 ### 前置要求
 
@@ -151,62 +112,71 @@ CookHero 面向厨房新手、健身/减脂/控糖人群、健康饮食倡导者
 - **Node.js**：>= 18
 - **Docker** 和 **Docker Compose**（推荐）
 
-### 方法一：Docker 一键部署（推荐）
+### 1. 获取项目
 
-1. **克隆项目**
-   ```bash
-   git clone https://github.com/Decade-qiu/CookHero.git
-   cd CookHero
-   ```
+```bash
+git clone https://github.com/luzhanchun/LingMate.git
+cd LingMate
+```
 
-2. **配置环境变量**
-   ```bash
-   cp .env.example .env
-   # 编辑 .env 文件，填入必要的 API Key
-   ```
+### 2. 配置环境变量
 
-3. **启动基础设施**
-   ```bash
-   cd deployments
-   docker-compose up -d
-   ```
-   这将启动：
-   - PostgreSQL (端口 5432)
-   - Redis (端口 6379)
-   - Milvus (端口 19530)
-   - MinIO (端口 9001)
-   - Etcd (内部使用)
+```bash
+cp .env.example .env
+# 编辑 .env，填入 LLM、数据库、Web 搜索、MCP、图片生成等配置
+```
 
-4. **安装 Python 依赖并启动后端**
-   ```bash
-   cd ..
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   
-   # 初始化数据库
-   python -m scripts.howtocook_loader
-   
-   # 启动后端服务
-   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
+### 3. 启动基础设施
 
-5. **启动前端**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+```bash
+cd deployments
+docker-compose up -d
+cd ..
+```
 
-6. **访问应用**
-   - 前端：http://localhost:5173
-   - 饮食管理：http://localhost:5173/diet
-   - 后端 API：http://localhost:8000
-   - API 文档：http://localhost:8000/docs
+这将启动：
+
+- PostgreSQL：`5432`
+- Redis：`6379`
+- Milvus：`19530`
+- MinIO：`9001`
+- Etcd：内部服务
+
+### 4. 安装依赖并启动后端
+
+本项目的 Python 命令请始终通过 `cook` Conda 环境执行：
+
+```bash
+conda run -n cook pip install -r requirements.txt
+
+# 可选：初始化示例知识库数据
+conda run -n cook python -m scripts.howtocook_loader
+
+# 启动后端服务
+conda run -n cook uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 5. 启动前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 6. 访问应用
+
+- Agent 工作台：http://localhost:5173/agent
+- 普通对话：http://localhost:5173/chat
+- 个人知识库：http://localhost:5173/knowledge
+- 评估监控：http://localhost:5173/evaluation
+- 模型统计：http://localhost:5173/llm-stats
+- 后端 API：http://localhost:8000
+- API 文档：http://localhost:8000/docs
 
 ---
 
-## ⚙️ 配置说明
+## 配置说明
 
 ### 1. 环境变量 (`.env`)
 
@@ -214,25 +184,14 @@ CookHero 面向厨房新手、健身/减脂/控糖人群、健康饮食倡导者
 
 ```env
 # ==================== LLM API 配置 ====================
-# 主 API Key（所有模块的默认 Key）
 LLM_API_KEY=your_main_api_key
-
-# 快速模型 API Key（用于意图识别、查询改写等）
 FAST_LLM_API_KEY=your_fast_model_api_key
-
-# 视觉模型 API Key（用于多模态分析）
 VISION_API_KEY=your_vision_model_api_key
-
-# Reranker API Key（用于结果重排序）
 RERANKER_API_KEY=your_reranker_api_key
 
 # ==================== 数据库配置 ====================
 DATABASE_PASSWORD=your_postgres_password
-
-# Redis 密码（可选）
 REDIS_PASSWORD=your_redis_password
-
-# Milvus 认证（可选）
 MILVUS_USER=root
 MILVUS_PASSWORD=your_milvus_password
 
@@ -240,32 +199,23 @@ MILVUS_PASSWORD=your_milvus_password
 WEB_SEARCH_API_KEY=your_tavily_api_key
 
 # ==================== MCP 集成 ====================
-# 高德地图 MCP 服务 API Key
 AMAP_API_KEY=your_amap_api_key
 
-# ==================== 图片生成 ====================
-# OpenAI 兼容的图片生成 API Key（DALL-E 3 等）
+# ==================== 图片生成与存储 ====================
 IMAGE_GENERATION_API_KEY=your_openai_api_key
-# imgbb 图床 API Key（用于图片持久化存储）
 IMGBB_STORAGE_API_KEY=your_imgbb_api_key
 
 # ==================== 安全认证 ====================
 JWT_SECRET_KEY=your_secure_jwt_secret_key
 JWT_ALGORITHM=HS256
-
-# 访问令牌过期时间（分钟）
 ACCESS_TOKEN_EXPIRE_MINUTES=60
-
-# 刷新令牌过期时间（天）
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
-# ==================== 速率限制 ====================
+# ==================== 速率限制与输入安全 ====================
 RATE_LIMIT_ENABLED=true
 RATE_LIMIT_LOGIN_PER_MINUTE=5
 RATE_LIMIT_CONVERSATION_PER_MINUTE=30
 RATE_LIMIT_GLOBAL_PER_MINUTE=100
-
-# ==================== 账户安全 ====================
 LOGIN_MAX_FAILED_ATTEMPTS=5
 LOGIN_LOCKOUT_MINUTES=15
 MAX_MESSAGE_LENGTH=10000
@@ -275,81 +225,67 @@ PROMPT_GUARD_ENABLED=true
 
 ### 2. 主配置文件 (`config.yml`)
 
-`config.yml` 包含应用的核心配置：
+`config.yml` 包含应用核心配置：
 
 ```yaml
-# LLM 提供商配置（分层：fast / normal / vision）
 llm:
-  fast:    # 快速模型（低延迟）
-  normal:  # 标准模型
-  vision:  # 视觉模型（多模态）
+  fast:    # 快速模型，用于路由、意图识别、轻量改写等
+  normal:  # 标准模型，用于主要回答和 Agent 推理
+  vision:  # 视觉模型，用于图片理解
 
-# 数据路径
 paths:
-  base_data_path: "data/HowToCook"
+  base_data_path: "data/HowToCook"  # 可替换为自己的全局知识库路径
 
-# 嵌入模型
 embedding:
   model_name: "BAAI/bge-small-zh-v1.5"
 
-# 向量存储
 vector_store:
   type: "milvus"
   collection_names:
     recipes: "cook_hero_recipes"
     personal: "cook_hero_personal_docs"
 
-# 检索配置
 retrieval:
   top_k: 9
   score_threshold: 0.2
   ranker_type: "weighted"
   ranker_weights: [0.8, 0.2]
 
-# 重排序配置
 reranker:
   enabled: true
   model_name: "Qwen/Qwen3-Reranker-8B"
 
-# 缓存配置
 cache:
   enabled: true
   ttl: 3600
   l2_enabled: true
   similarity_threshold: 0.92
 
-# Web 搜索配置
 web_search:
   enabled: true
   max_results: 6
 
-# 视觉/多模态配置
 vision:
   model:
     enabled: true
     model_name: "Qwen/QVQ-72B-Preview"
 
-# 评估配置
 evaluation:
   enabled: true
   async_mode: true
   sample_rate: 1.0
 
-# MCP 配置
 mcp:
   amap:
     enabled: true
 
-# 图片生成配置
 image_generation:
   enabled: true
   model: "dall-e-3"
 
-# 图片存储配置（imgbb）
 image_storage:
   enabled: true
 
-# 数据库连接
 database:
   postgres:
     host: "localhost"
@@ -366,57 +302,39 @@ database:
 
 ---
 
-## 🗺️ 未来规划 (Roadmap)
+## Roadmap
 
-- [x] **多模态支持**：食材图片识别、菜品识别 ✅
-- [x] **RAG 评估系统**：基于 RAGAS 的质量监控 ✅
-- [x] **安全防护体系**：输入验证、提示词注入防护、速率限制 ✅
-- [x] **LLM 使用统计**：Token 监控、性能分析页面 ✅
-- [x] **Agent 智能模式**：ReAct 推理、工具调用、会话管理 ✅
-- [x] **Subagent 专家体系**：内置与自定义子代理、可视化追踪 ✅
-- [x] **MCP 协议支持**：远程工具加载、高德地图集成 ✅
-- [x] **AI 图片生成**：DALL-E 3 集成、imgbb 持久化存储 ✅
-- [x] **饮食计划与记录**：周计划、已吃标记、AI 记录 ✅
-- [x] **营养分析与目标追踪**：每日/每周摘要、偏差分析 ✅
-- [ ] **语音交互**：语音输入查询、语音播报步骤
-- [ ] **社区功能**：用户分享、评分、评论
-- [ ] **智能食材管理**：冰箱清单、食材过期提醒
-- [ ] **AR 烹饪指导**：增强现实辅助烹饪
-- [ ] **更多 Agent 工具**：食谱搜索、营养计算、购物清单生成
-
----
-
-## 🤝 贡献指南
-
-欢迎贡献代码、提出问题或建议！
-
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 提交 Pull Request
+- [x] **Agent 智能模式**：ReAct 推理、工具调用、会话管理
+- [x] **Agent Router**：根据请求自动分发到合适的专业 Agent
+- [x] **Subagent 专家体系**：内置与自定义子代理、可视化追踪
+- [x] **MCP 协议支持**：远程工具加载、用户级绑定、高德地图集成
+- [x] **出行规划 Agent**：地图、路线、交通和行程规划能力
+- [x] **多模态支持**：图片输入理解与上下文融合
+- [x] **AI 图片生成**：DALL-E 3 集成、imgbb 持久化存储
+- [x] **个人知识库**：文档上传、索引、检索和来源追溯
+- [x] **RAG 评估系统**：基于 RAGAS 的质量监控
+- [x] **LLM 使用统计**：Token 监控、性能分析页面
+- [x] **安全防护体系**：输入验证、提示词注入防护、速率限制
+- [ ] **更多专业 Agent**：日程、文件、邮件、学习、财务等个人助手场景
+- [ ] **Agent 编排增强**：多 Agent 协作、任务拆解和长期任务状态管理
+- [ ] **语音交互**：语音输入与语音播报
+- [ ] **本地文件工作区**：面向个人资料的文件理解、整理和生成
 
 ---
 
-## 📄 开源协议
+## 致谢
 
-本项目基于 [APACHE LICENSE 2.0](LICENSE) 许可证开源。详情请参阅 LICENSE 文件。
-
----
-
-## 🙏 致谢
-
-- [HowToCook](https://github.com/Anduin2017/HowToCook) - 优质的开源食谱库
-- [LangChain](https://www.langchain.com/) - 强大的 LLM 应用框架
+- [LangChain](https://www.langchain.com/) - LLM 应用开发框架
 - [Milvus](https://milvus.io/) - 高性能向量数据库
-- [FastAPI](https://fastapi.tiangolo.com/) - 现代化的 Python Web 框架
-- [NVIDIA NeMo Guardrails](https://developer.nvidia.com/nvidia-nemo) - 先进的安全防护框架
+- [FastAPI](https://fastapi.tiangolo.com/) - 现代化 Python Web 框架
+- [NVIDIA NeMo Guardrails](https://developer.nvidia.com/nvidia-nemo) - 安全防护框架
 - [RAGAS](https://docs.ragas.io/) - RAG 评估框架
+- [HowToCook](https://github.com/Anduin2017/HowToCook) - 原始示例知识库数据来源之一
 
 ---
 
 <div align="center">
 
-**如果这个项目对您有帮助，请给一个 ⭐️ Star 支持一下！**
+**如果这个项目对您有帮助，请给一个 Star 支持一下！**
 
 </div>
