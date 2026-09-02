@@ -57,7 +57,7 @@ class RetrievalOptimizationModule:
             ranker_type: Ranker type ("rrf" or "weighted"). Uses default if None.
             ranker_weights: Weights for [dense, sparse] when using weighted ranker. Uses default if None.
             score_threshold: Minimum score threshold. Uses instance default if None.
-            
+            RRF 模式不会执行阈值过滤，因为 RRF 分数是基于排名计算的.
         Returns:
             A tuple of (documents, scores) where both lists have the same length.
         """
@@ -84,7 +84,7 @@ class RetrievalOptimizationModule:
             self.vectorstore.similarity_search_with_score,
             query=query,
             k=top_k,
-            fetch_k=int(top_k * 4),
+            fetch_k=int(top_k * 4),#
             ranker_type=ranker_type,
             ranker_params=ranker_params if ranker_params else None,
             expr=expr,

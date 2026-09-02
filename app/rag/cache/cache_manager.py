@@ -211,7 +211,9 @@ class CacheManager:
         # Store in L1 cache
         if self.keyword_cache:
             try:
+                #获取key
                 cache_key = self._get_cache_key(data_source, query, scope)
+                #存入redis
                 stored = await self.keyword_cache.set(cache_key, serialized, ttl_seconds=self.ttl)
                 if stored:
                     logger.info(f"L1 cache SET for '{data_source}': {len(documents)} documents (TTL={self.ttl}s)")

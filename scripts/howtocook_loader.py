@@ -424,36 +424,36 @@ async def ingest_howtocook(args: argparse.Namespace) -> None:
         headers_to_split_on=headers,
         source_root=base_path,
     )
-
+    #初始化 PostgreSQL
     logger.info("Initializing database schema")
     await init_db()
-
+    #非 --append 模式：删除旧 recipes 数据
     if not args.append:
         deleted = await DocumentRepository.delete_by_data_source("recipes")
         logger.info("Deleted %d existing PostgreSQL recipe documents", deleted)
-
+    #扫描并解析菜谱、技巧 Markdown存入-->ParsedDocument父文档
     documents = loader.load_documents()
     if not documents:
         logger.warning("No documents found; nothing to ingest")
         return
-
+    #父文档分批写入 PostgreSQL
     logger.info("Writing %d parent documents to PostgreSQL", len(documents))
     for start in range(0, len(documents), args.batch_size):
         batch = documents[start : start + args.batch_size]
         await DocumentRepository.create_batch([doc.to_dict() for doc in batch])
         logger.info("Wrote PostgreSQL batch %d-%d", start + 1, start + len(batch))
-
+    #刷新元数据缓存
     await DocumentRepository.init_all_metadata_cache()
-
+    #只存入数据库，跳过向量存储
     if args.db_only:
         logger.info("DB-only mode enabled; skipping Milvus indexing")
         return
-
+    #按 Markdown 标题切块
     chunks = loader.create_chunks(documents)
     if not chunks:
         logger.warning("No chunks created; skipping Milvus indexing")
         return
-
+    #初始化 Embedding 与 Milvus
     logger.info("Initializing embedding model and Milvus collection")
     embeddings = get_embedding_model(DefaultRAGConfig)
     vector_store = get_vector_store(
@@ -463,7 +463,7 @@ async def ingest_howtocook(args: argparse.Namespace) -> None:
         chunks=[],
         force_rebuild=not args.append,
     )
-
+    #分批向量化并写入 Milvus
     logger.info("Indexing %d chunks into Milvus collection %s", len(chunks), args.collection)
     for start in range(0, len(chunks), args.batch_size):
         batch = chunks[start : start + args.batch_size]
