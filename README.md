@@ -15,7 +15,7 @@
 
 <div align="center">
 <p align="center">
-  <img src="./docs/agent.jpg" width="48%">
+  <img src="./docs/agent.png" width="100%">
   <img src="./docs/demo_2x.gif" width="48%"/>
 </p>
 </div>
