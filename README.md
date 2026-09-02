@@ -2,7 +2,7 @@
 
 <img src="./docs/image.png" alt="LZC Assistant Logo" width="512" />
 
-**多 Agent 个人通用助手 · 可扩展的智能体工作台**
+**可扩展多场景 Agent 智能体工作台**
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.122-009688.svg)](https://fastapi.tiangolo.com/)
@@ -27,9 +27,9 @@
 
 ## 项目简介
 
-**LingMate** 是一个面向个人日常场景的多 Agent 通用助手平台。系统以 Agent Router 为入口，根据用户意图自动分发到合适的专业智能体，并通过本地工具、MCP 服务、知识库检索、多模态理解和长期上下文，为用户提供可执行的个人助理能力。
+**LingMate** 是一个多场景 Agent 通用助手平台。系统以 Agent Router 为入口，根据用户意图自动路由到合适的专业智能体，并通过ReAct工具调用、MCP 服务接入、知识库检索、多模态理解、长期上下文和流式交互为用户提供可执行的个人助理能力。
 
-项目当前内置出行规划、通用问答、知识库检索、图片生成、网页搜索、计算、日期时间等能力；原有的饮食计划、记录和分析模块已作为个人助手中的一个可选垂直能力保留，不再作为项目主定位。
+项目当前内置出行规划、生活管理，通用问答、知识库检索、图片生成、网页搜索、计算、日期时间等能力；
 
 - **智能路由**：根据当前消息和上下文自动选择合适的 Agent
 - **专业智能体**：支持出行规划、生活管理、知识查询等垂直助手扩展
@@ -50,7 +50,7 @@
 - **MCP 动态扩展**：支持用户配置 MCP Server，并绑定到指定 Agent
 - **多模态能力**：图片输入解析、AI 图片生成和外部图床持久化
 - **可观测与评估**：RAGAS 质量评估、LLM Token 统计、工具执行追踪
-- **现代化全栈**：FastAPI + React + PostgreSQL + Milvus + Redis + MinIO
+- **现代化全栈**：FastAPI + React + MYSQL + Milvus + Redis + MinIO
 
 ## 核心功能
 
@@ -299,42 +299,3 @@ database:
 ```
 
 详细配置说明见 `config.yml` 文件中的注释。
-
----
-
-## Roadmap
-
-- [x] **Agent 智能模式**：ReAct 推理、工具调用、会话管理
-- [x] **Agent Router**：根据请求自动分发到合适的专业 Agent
-- [x] **Subagent 专家体系**：内置与自定义子代理、可视化追踪
-- [x] **MCP 协议支持**：远程工具加载、用户级绑定、高德地图集成
-- [x] **出行规划 Agent**：地图、路线、交通和行程规划能力
-- [x] **多模态支持**：图片输入理解与上下文融合
-- [x] **AI 图片生成**：DALL-E 3 集成、imgbb 持久化存储
-- [x] **个人知识库**：文档上传、索引、检索和来源追溯
-- [x] **RAG 评估系统**：基于 RAGAS 的质量监控
-- [x] **LLM 使用统计**：Token 监控、性能分析页面
-- [x] **安全防护体系**：输入验证、提示词注入防护、速率限制
-- [ ] **更多专业 Agent**：日程、文件、邮件、学习、财务等个人助手场景
-- [ ] **Agent 编排增强**：多 Agent 协作、任务拆解和长期任务状态管理
-- [ ] **语音交互**：语音输入与语音播报
-- [ ] **本地文件工作区**：面向个人资料的文件理解、整理和生成
-
----
-
-## 致谢
-
-- [LangChain](https://www.langchain.com/) - LLM 应用开发框架
-- [Milvus](https://milvus.io/) - 高性能向量数据库
-- [FastAPI](https://fastapi.tiangolo.com/) - 现代化 Python Web 框架
-- [NVIDIA NeMo Guardrails](https://developer.nvidia.com/nvidia-nemo) - 安全防护框架
-- [RAGAS](https://docs.ragas.io/) - RAG 评估框架
-- [HowToCook](https://github.com/Anduin2017/HowToCook) - 原始示例知识库数据来源之一
-
----
-
-<div align="center">
-
-**如果这个项目对您有帮助，请给一个 Star 支持一下！**
-
-</div>
